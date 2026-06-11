@@ -1,5 +1,7 @@
 # GitSeeable
 
+[中文版](README.zh.md)
+
 A full-stack Git repository visualization tool built with React 19 + Vite 5 (frontend) and Express 5 (backend). Browse local directories, select Git repositories, and manage branches through an intuitive web UI.
 
 ## Features
