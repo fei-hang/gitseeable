@@ -1,0 +1,109 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "restoring": "Restoring last session...",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "create": "Create",
+    "delete": "Delete",
+    "rename": "Rename",
+    "success": "Success",
+    "fail": "Failed",
+    "error": "Error",
+    "ok": "OK"
+  },
+  "select": {
+    "title": "Git Repository Visualizer",
+    "placeholder": "Enter directory path, e.g. D:\\\\projects or C:\\\\Users",
+    "go": "Go",
+    "drives": "Drive List",
+    "currentPath": "Current Path:",
+    "noPath": "(select a drive or enter a path)",
+    "parentDir": "⬆ Parent Directory",
+    "checking": "Checking...",
+    "checkGit": "Check if Git Repository",
+    "notRepo": "This directory is not a Git repository",
+    "selectDrive": "Select Drive",
+    "browser": "Directory Browser",
+    "emptyDir": "No subdirectories in this path"
+  },
+  "analyze": {
+    "reselect": "← Reselect Directory",
+    "tabCommits": "Commits",
+    "tabCompare": "Branch Compare"
+  },
+  "branch": {
+    "local": "Local Branches",
+    "remote": "Remote Branches",
+    "more": "... {{count}} more"
+  },
+  "commit": {
+    "loading": "Loading...",
+    "empty": "No commits on this branch",
+    "count": "{{count}} commits",
+    "prevPage": "Prev",
+    "nextPage": "Next"
+  },
+  "compare": {
+    "hasNot": "{{branch1}} has, {{branch2}} does not",
+    "commits": "{{count}} commits",
+    "empty": "No differences",
+    "diffLoading": "Loading diff..."
+  },
+  "context": {
+    "checkout": "Checkout {{branch}}",
+    "create": "New branch from {{branch}}",
+    "merge": "Merge {{branch}} into {{current}}",
+    "rebase": "Rebase {{current}} onto {{branch}}",
+    "compare": "Compare {{branch}} with {{current}}",
+    "fetch": "Fetch",
+    "push": "Push",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "dialog": {
+    "createBranch": {
+      "title": "Create Branch",
+      "placeholder": "Enter branch name",
+      "emptyError": "Please enter a branch name"
+    },
+    "merge": {
+      "title": "Confirm Merge",
+      "text": "Are you sure you want to merge \"{{source}}\" into \"{{current}}\"?"
+    },
+    "rebase": {
+      "title": "Confirm Rebase",
+      "text": "Are you sure you want to rebase \"{{current}}\" onto \"{{target}}\"?"
+    },
+    "rename": {
+      "title": "Rename Branch",
+      "emptyError": "Please enter a new name",
+      "sameError": "New name is the same as the old name"
+    },
+    "delete": {
+      "title": "Confirm Delete",
+      "text": "Are you sure you want to delete branch \"{{branch}}\"?"
+    },
+    "push": {
+      "success": "Branch \"{{branch}}\" pushed successfully",
+      "fail": "Push failed"
+    },
+    "fetch": {
+      "success": "Fetch completed",
+      "fail": "Fetch failed"
+    },
+    "checkoutFail": "Checkout failed",
+    "createFail": "Create failed",
+    "mergeFail": "Merge failed",
+    "renameFail": "Rename failed",
+    "deleteFail": "Delete failed",
+    "compareFail": "Compare failed",
+    "diffFail": "Load failed",
+    "rebaseFail": "Rebase failed"
+  },
+  "error": {
+    "loadDrives": "Failed to load drives: {{msg}}",
+    "loadDirectories": "Failed to load directories: {{msg}}",
+    "checkGit": "Failed to check Git repository: {{msg}}"
+  }
+}

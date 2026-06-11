@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-spec": {
+      "name": "前端开发规范",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=frontend-spec",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-11T13:34:04Z"
+    },
+    "dy-skill-i18n": {
+      "name": "i18国际化文案翻译",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=dy-skill-i18n",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-11T14:35:43Z"
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "restoring": "恢复上次会话...",
+    "confirm": "确定",
+    "cancel": "取消",
+    "create": "创建",
+    "delete": "删除",
+    "rename": "重命名",
+    "success": "成功",
+    "fail": "失败",
+    "error": "错误",
+    "ok": "确定"
+  },
+  "select": {
+    "title": "Git 仓库可视化工具",
+    "placeholder": "输入目录路径，如 D:\\\\projects 或 C:\\\\Users",
+    "go": "前往",
+    "drives": "盘符列表",
+    "currentPath": "当前路径:",
+    "noPath": "(请选择盘符或输入路径)",
+    "parentDir": "⬆ 上级目录",
+    "checking": "检查中...",
+    "checkGit": "检查是否为Git仓库",
+    "notRepo": "该目录不是 Git 仓库",
+    "selectDrive": "选择盘符",
+    "browser": "目录浏览器",
+    "emptyDir": "该目录下没有子文件夹"
+  },
+  "analyze": {
+    "reselect": "← 重选目录",
+    "tabCommits": "提交历史",
+    "tabCompare": "分支比较"
+  },
+  "branch": {
+    "local": "本地分支",
+    "remote": "远程分支",
+    "more": "... 还有 {{count}} 个"
+  },
+  "commit": {
+    "loading": "加载中...",
+    "empty": "该分支没有提交记录",
+    "count": "{{count}} 个提交",
+    "prevPage": "上一页",
+    "nextPage": "下一页"
+  },
+  "compare": {
+    "hasNot": "{{branch1}} 有，{{branch2}} 没有",
+    "commits": "{{count}} 个提交",
+    "empty": "无差异",
+    "diffLoading": "加载 diff 中..."
+  },
+  "context": {
+    "checkout": "迁出 {{branch}} 分支",
+    "create": "从 {{branch}} 分支新建分支",
+    "merge": "将 {{branch}} 合并到 {{current}}",
+    "rebase": "将 {{current}} 变基到 {{branch}}",
+    "compare": "{{branch}} 分支与 {{current}} 比较",
+    "fetch": "更新",
+    "push": "推送",
+    "rename": "重命名",
+    "delete": "删除"
+  },
+  "dialog": {
+    "createBranch": {
+      "title": "新建分支",
+      "placeholder": "请输入分支名称",
+      "emptyError": "请输入分支名称"
+    },
+    "merge": {
+      "title": "确认合并",
+      "text": "确定将分支 \"{{source}}\" 合并到当前分支 \"{{current}}\"？"
+    },
+    "rebase": {
+      "title": "确认变基",
+      "text": "确定将当前分支 \"{{current}}\" 变基到 \"{{target}}\"？"
+    },
+    "rename": {
+      "title": "重命名分支",
+      "emptyError": "请输入新名称",
+      "sameError": "新名称与旧名称相同"
+    },
+    "delete": {
+      "title": "确认删除",
+      "text": "确定删除分支 \"{{branch}}\"？"
+    },
+    "push": {
+      "success": "分支 \"{{branch}}\" 推送成功",
+      "fail": "推送失败"
+    },
+    "fetch": {
+      "success": "更新完成",
+      "fail": "更新失败"
+    },
+    "checkoutFail": "迁出失败",
+    "createFail": "创建失败",
+    "mergeFail": "合并失败",
+    "renameFail": "重命名失败",
+    "deleteFail": "删除失败",
+    "compareFail": "比较失败",
+    "diffFail": "加载失败",
+    "rebaseFail": "变基失败"
+  },
+  "error": {
+    "loadDrives": "加载盘符失败: {{msg}}",
+    "loadDirectories": "加载目录失败: {{msg}}",
+    "checkGit": "检查Git仓库失败: {{msg}}"
+  }
+}

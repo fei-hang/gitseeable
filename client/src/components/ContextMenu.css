@@ -1,0 +1,42 @@
+.context-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+}
+
+.context-menu {
+  position: fixed;
+  top: var(--menu-y);
+  left: var(--menu-x);
+  z-index: 1000;
+  background: #555;
+  border: none;
+  border-radius: 6px;
+  min-width: 130px;
+  padding: 4px 0;
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.1s;
+}
+
+.context-menu-item:hover {
+  background: #777;
+  color: #fff;
+}
+
+.context-menu-item--danger {
+  color: #fca5a5;
+}
+
+.context-menu-item--danger:hover {
+  background: #991b1b;
+  color: #fff;
+}
