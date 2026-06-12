@@ -18,6 +18,10 @@
 |---|---|
 | ![目录选择](screenshot_select.png) | ![仓库分析](screenshot_analyze.png) |
 
+## 环境要求
+
+- **Node.js v20.19.3**（其他 v20 版本可能也可以，但仅测试了 v20.19.3）
+
 ## 技术栈
 
 | 层 | 技术 |
@@ -29,12 +33,19 @@
 ## 快速开始
 
 ```bash
-# 安装依赖（三个独立的 npm install，无 npm workspaces）
+# 1. 克隆仓库
+git clone https://github.com/fei-hang/gitseeable.git
+cd gitseeable
+
+# 2. 确保使用 Node v20.19.3（例如使用 nvm）
+nvm use 20.19.3
+
+# 3. 安装依赖（三个独立的 npm install，无 npm workspaces）
 npm install
 cd client && npm install
 cd ../server && npm install
 
-# 启动开发服务（server:3001 + client:3000）
+# 4. 启动开发服务（server:3001 + client:3000）
 cd ..
 npm run dev
 ```
@@ -50,6 +61,12 @@ npm run dev
 | `npm run client` | 仅启动前端（端口 3000） |
 | `cd client && npm run build` | 生产构建 |
 | `cd client && npm run lint` | 运行 ESLint |
+
+## AI 快速启动
+
+你可以把以下提示词分享给 AI 编程助手（Cursor、Claude Code 等），让它自动克隆并启动项目：
+
+> 克隆 https://github.com/fei-hang/gitseeable.git，然后用 `nvm use 20.19.3` 设置正确的 Node 版本，用 `npm install && cd client && npm install && cd ../server && npm install` 安装依赖，最后用 `cd .. && npm run dev` 启动开发服务。开发服务器是长进程，不要等待它们退出。可以用 `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` 来验证后端是否运行。
 
 ## 许可
 
