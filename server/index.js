@@ -273,7 +273,13 @@ app.post('/api/push', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('推送分支时出错:', error);
-    res.status(500).json({ error: error.message });
+    let remoteUrl = '';
+    try {
+      const remotes = await getGit(dirPath).getRemotes(true);
+      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+    } catch (_) {}
+    const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
+    res.status(500).json({ error: `${prefix}${error.message}` });
   }
 });
 
@@ -289,7 +295,13 @@ app.post('/api/fetch', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('拉取更新时出错:', error);
-    res.status(500).json({ error: error.message });
+    let remoteUrl = '';
+    try {
+      const remotes = await getGit(dirPath).getRemotes(true);
+      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+    } catch (_) {}
+    const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
+    res.status(500).json({ error: `${prefix}${error.message}` });
   }
 });
 
@@ -540,7 +552,13 @@ app.post('/api/local-commit-push', async (req, res) => {
     res.json({ ok: true, branch });
   } catch (error) {
     console.error('提交并推送时出错:', error);
-    res.status(500).json({ error: error.message });
+    let remoteUrl = '';
+    try {
+      const remotes = await getGit(dirPath).getRemotes(true);
+      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+    } catch (_) {}
+    const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
+    res.status(500).json({ error: `${prefix}${error.message}` });
   }
 });
 
