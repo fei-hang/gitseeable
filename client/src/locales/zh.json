@@ -31,7 +31,30 @@
   "analyze": {
     "reselect": "← 重选目录",
     "tabCommits": "提交历史",
-    "tabCompare": "分支比较"
+    "tabCompare": "分支比较",
+    "tabLocal": "本地修改"
+  },
+  "local": {
+    "commitPlaceholder": "输入提交说明...",
+    "commit": "提交",
+    "commitPush": "提交并推送",
+    "staged": "已暂存",
+    "unstaged": "未暂存",
+    "noStaged": "没有已暂存的文件",
+    "noUnstaged": "没有未暂存的文件",
+    "selectFile": "请选择一个文件查看修改内容",
+    "clickLoad": "点击加载本地修改",
+    "stagedType": "已暂存",
+    "unstagedType": "未暂存",
+    "original": "原始文件",
+    "modified": "修改后的文件",
+    "commitSuccess": "提交成功",
+    "commitPushSuccess": "提交并推送成功",
+    "commitFail": "提交失败",
+    "commitPushFail": "提交并推送失败",
+    "noMessage": "请输入提交说明",
+    "emptyStatus": "没有本地修改",
+    "noFilesSelected": "请选择要提交的文件"
   },
   "branch": {
     "local": "本地分支",

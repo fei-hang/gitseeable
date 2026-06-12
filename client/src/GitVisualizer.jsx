@@ -7,7 +7,8 @@ import {
   saveLastPath, getLastPath,
   checkoutBranch, createBranch, mergeBranch, renameBranch,
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
-  fetchCommitFiles, fetchCommitFileDiff
+  fetchCommitFiles, fetchCommitFileDiff,
+  fetchLocalStatus, fetchLocalFileDiff, commitChanges, commitAndPush
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -50,6 +51,16 @@ function GitVisualizer() {
   const [expandedFile, setExpandedFile] = useState(null);
   const [fileDiff, setFileDiff] = useState('');
   const [fileDiffLoading, setFileDiffLoading] = useState(false);
+  const [localStatus, setLocalStatus] = useState(null);
+  const [localStatusLoading, setLocalStatusLoading] = useState(false);
+  const [selectedLocalFile, setSelectedLocalFile] = useState(null);
+  const [selectedLocalFileType, setSelectedLocalFileType] = useState(null);
+  const [localFileDiff, setLocalFileDiff] = useState([]);
+  const [localFileDiffLoading, setLocalFileDiffLoading] = useState(false);
+  const [commitMessage, setCommitMessage] = useState('');
+  const [commitLoading, setCommitLoading] = useState(false);
+  const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
+  const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -398,15 +409,153 @@ function GitVisualizer() {
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 
+  const loadFileDiff = async (filePath, type) => {
+    setLocalFileDiffLoading(true);
+    try {
+      const data = await fetchLocalFileDiff(currentPath, filePath, type);
+      setLocalFileDiff(data.rows || []);
+    } catch (_) {
+      setLocalFileDiff([]);
+    } finally {
+      setLocalFileDiffLoading(false);
+    }
+  };
+
+  const handleLoadLocalStatus = async () => {
+    if (localStatusLoading) return;
+    setLocalStatusLoading(true);
+    try {
+      const data = await fetchLocalStatus(currentPath);
+      setLocalStatus(data);
+      const stagedSel = {};
+      data.staged.forEach(f => { stagedSel[f.path] = true; });
+      setSelectedStagedFiles(stagedSel);
+      setSelectedUnstagedFiles({});
+      if (data.staged.length > 0) {
+        setSelectedLocalFile(data.staged[0].path);
+        setSelectedLocalFileType('staged');
+        await loadFileDiff(data.staged[0].path, 'staged');
+      } else if (data.unstaged.length > 0) {
+        setSelectedLocalFile(data.unstaged[0].path);
+        setSelectedLocalFileType('unstaged');
+        await loadFileDiff(data.unstaged[0].path, 'unstaged');
+      } else {
+        setSelectedLocalFile(null);
+        setSelectedLocalFileType(null);
+        setLocalFileDiff([]);
+      }
+    } catch (_) {
+      setLocalStatus(null);
+    } finally {
+      setLocalStatusLoading(false);
+    }
+  };
+
+  const handleSelectLocalFile = async (filePath, type) => {
+    if (selectedLocalFile === filePath && selectedLocalFileType === type) return;
+    setSelectedLocalFile(filePath);
+    setSelectedLocalFileType(type);
+    await loadFileDiff(filePath, type);
+  };
+
+  const handleToggleStagedFile = (path) => {
+    setSelectedStagedFiles(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const handleToggleUnstagedFile = (path) => {
+    setSelectedUnstagedFiles(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const handleToggleAllStaged = () => {
+    if (!localStatus) return;
+    const allSelected = localStatus.staged.every(f => selectedStagedFiles[f.path]);
+    const next = {};
+    localStatus.staged.forEach(f => { next[f.path] = !allSelected; });
+    setSelectedStagedFiles(next);
+  };
+
+  const handleToggleAllUnstaged = () => {
+    if (!localStatus) return;
+    const allSelected = localStatus.unstaged.every(f => selectedUnstagedFiles[f.path]);
+    const next = {};
+    localStatus.unstaged.forEach(f => { next[f.path] = !allSelected; });
+    setSelectedUnstagedFiles(next);
+  };
+
+  const getSelectedFiles = () => [
+    ...Object.keys(selectedStagedFiles).filter(k => selectedStagedFiles[k]),
+    ...Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k])
+  ];
+
+  const handleCommit = async () => {
+    const msg = commitMessage.trim();
+    if (!msg) {
+      Swal.fire({ icon: 'warning', title: t('local.noMessage') });
+      return;
+    }
+    const selectedFiles = getSelectedFiles();
+    if (selectedFiles.length === 0) {
+      Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
+      return;
+    }
+    setCommitLoading(true);
+    try {
+      await commitChanges(currentPath, msg, selectedFiles);
+      Swal.fire({ icon: 'success', title: t('local.commitSuccess'), timer: 1500, showConfirmButton: false });
+      setCommitMessage('');
+      setLocalFileDiff([]);
+      setSelectedLocalFile(null);
+      await handleLoadLocalStatus();
+      if (selectedBranch) await handleLoadCommits(selectedBranch);
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: t('local.commitFail'), text: err.response?.data?.error || err.message });
+    } finally {
+      setCommitLoading(false);
+    }
+  };
+
+  const handleCommitAndPush = async () => {
+    const msg = commitMessage.trim();
+    if (!msg) {
+      Swal.fire({ icon: 'warning', title: t('local.noMessage') });
+      return;
+    }
+    const selectedFiles = getSelectedFiles();
+    if (selectedFiles.length === 0) {
+      Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
+      return;
+    }
+    setCommitLoading(true);
+    try {
+      await commitAndPush(currentPath, msg, selectedFiles);
+      Swal.fire({ icon: 'success', title: t('local.commitPushSuccess'), timer: 1500, showConfirmButton: false });
+      setCommitMessage('');
+      setLocalFileDiff([]);
+      setSelectedLocalFile(null);
+      await handleLoadLocalStatus();
+      if (selectedBranch) await handleLoadCommits(selectedBranch);
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: t('local.commitPushFail'), text: err.response?.data?.error || err.message });
+    } finally {
+      setCommitLoading(false);
+    }
+  };
+
   const handleSwitchLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
   };
 
+  const isSidebarCollapsed = sidebarWidth < 20;
+
   const handleSidebarMouseDown = useCallback((e) => {
     isDragging.current = true;
     startX.current = e.clientX;
-    startWidth.current = sidebarRef.current?.offsetWidth || sidebarWidth;
+    startWidth.current = Math.max(0, sidebarRef.current?.offsetWidth || sidebarWidth);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, [sidebarWidth]);
@@ -414,8 +563,12 @@ function GitVisualizer() {
   const handleSidebarMouseMove = useCallback((e) => {
     if (!isDragging.current) return;
     const delta = e.clientX - startX.current;
-    setSidebarWidth(Math.max(80, startWidth.current + delta));
+    setSidebarWidth(Math.max(0, startWidth.current + delta));
   }, []);
+
+  const handleSidebarExpand = () => {
+    if (isSidebarCollapsed) setSidebarWidth(260);
+  };
 
   const handleSidebarMouseUp = useCallback(() => {
     if (!isDragging.current) return;
@@ -474,8 +627,11 @@ function GitVisualizer() {
   };
 
   useEffect(() => {
-    if (view === 'analyze' && selectedBranch && activeTab === 'commits') {
+    if (view === 'analyze' && activeTab === 'commits' && selectedBranch) {
       handleLoadCommits(selectedBranch);
+    }
+    if (view === 'analyze' && activeTab === 'local') {
+      handleLoadLocalStatus();
     }
   }, [view, activeTab]);
 
@@ -491,6 +647,7 @@ function GitVisualizer() {
           <span className="analyze-path">{currentPath}</span>
           <div className="analyze-tabs">
             <button className={`analyze-tab${activeTab === 'commits' ? ' analyze-tab--active' : ''}`} onClick={() => setActiveTab('commits')}>{t('analyze.tabCommits')}</button>
+            <button className={`analyze-tab${activeTab === 'local' ? ' analyze-tab--active' : ''}`} onClick={() => setActiveTab('local')}>{t('analyze.tabLocal')}</button>
             {compareData && (
               <button className={`analyze-tab${activeTab === 'compare' ? ' analyze-tab--active' : ''}`} onClick={() => setActiveTab('compare')}>{t('analyze.tabCompare')}</button>
             )}
@@ -498,27 +655,32 @@ function GitVisualizer() {
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
         </div>
         <div className="analyze-body">
-          <div className="analyze-sidebar" ref={sidebarRef} style={{ width: sidebarWidth }}>
-            <BranchList
-              title={t('branch.local')}
-              branches={gitInfo.localBranches}
-              currentBranch={gitInfo.currentBranch}
-              selectedBranch={selectedBranch}
-              onSelect={handleBranchSelect}
-              onDoubleClick={handleBranchDoubleClick}
-              onContextMenuOpen={handleContextMenuOpen}
-            />
-            <BranchList
-              title={t('branch.remote')}
-              branches={gitInfo.remoteBranches}
-              currentBranch={gitInfo.currentBranch}
-              selectedBranch={selectedBranch}
-              onSelect={handleBranchSelect}
-              onDoubleClick={handleBranchDoubleClick}
-              onContextMenuOpen={handleContextMenuOpen}
-            />
+          <div className={`analyze-sidebar${isSidebarCollapsed ? ' analyze-sidebar--collapsed' : ''}`} ref={sidebarRef} style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}>
+            {!isSidebarCollapsed && (
+              <>
+                <BranchList
+                  title={t('branch.local')}
+                  branches={gitInfo.localBranches}
+                  currentBranch={gitInfo.currentBranch}
+                  selectedBranch={selectedBranch}
+                  onSelect={handleBranchSelect}
+                  onDoubleClick={handleBranchDoubleClick}
+                  onContextMenuOpen={handleContextMenuOpen}
+                />
+                <BranchList
+                  title={t('branch.remote')}
+                  branches={gitInfo.remoteBranches}
+                  currentBranch={gitInfo.currentBranch}
+                  selectedBranch={selectedBranch}
+                  onSelect={handleBranchSelect}
+                  onDoubleClick={handleBranchDoubleClick}
+                  onContextMenuOpen={handleContextMenuOpen}
+                />
+              </>
+            )}
           </div>
-          <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} />
+          <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} onClick={handleSidebarExpand} />
+          {isSidebarCollapsed && <div className="sidebar-collapsed-tab" onClick={() => setSidebarWidth(260)} />}
           <div className="analyze-main">
             {activeTab === 'commits' && (
               <>
@@ -647,6 +809,152 @@ function GitVisualizer() {
                     </pre>
                   </div>
                 )}
+              </div>
+            )}
+            {activeTab === 'local' && (
+              <div className="local-view">
+                <div className="local-sidebar">
+                  <textarea
+                    className="commit-msg-input"
+                    placeholder={t('local.commitPlaceholder')}
+                    value={commitMessage}
+                    onChange={(e) => setCommitMessage(e.target.value)}
+                  />
+                  <div className="commit-actions">
+                    <button
+                      className="btn btn--primary"
+                      disabled={!commitMessage.trim() || commitLoading}
+                      onClick={handleCommit}
+                    >{t('local.commit')}</button>
+                    <button
+                      className="btn btn--primary"
+                      disabled={!commitMessage.trim() || commitLoading}
+                      onClick={handleCommitAndPush}
+                    >{t('local.commitPush')}</button>
+                  </div>
+                  {localStatusLoading ? (
+                    <p className="local-status-loading">{t('common.loading')}</p>
+                  ) : !localStatus ? (
+                    <p className="local-status-loading" onClick={handleLoadLocalStatus}>{t('local.clickLoad')}</p>
+                  ) : (
+                    <div className="local-files">
+                      <div className="file-section">
+                        <div className="file-section-header">
+                          <label className="file-section-checkall">
+                            <input
+                              type="checkbox"
+                              checked={localStatus.staged.length > 0 && localStatus.staged.every(f => selectedStagedFiles[f.path])}
+                              onChange={handleToggleAllStaged}
+                            />
+                            <span className="file-section-title">{t('local.staged')} ({localStatus.staged.length})</span>
+                          </label>
+                        </div>
+                        <div className="file-section-list">
+                          {localStatus.staged.length === 0 ? (
+                            <p className="file-section-empty">{t('local.noStaged')}</p>
+                          ) : (
+                            localStatus.staged.map((f) => (
+                              <div key={f.path} className="file-item-row">
+                                <label className="file-item-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!selectedStagedFiles[f.path]}
+                                    onChange={() => handleToggleStagedFile(f.path)}
+                                  />
+                                </label>
+                                <div
+                                  className={`file-item${selectedLocalFile === f.path && selectedLocalFileType === 'staged' ? ' file-item--selected' : ''}`}
+                                  onClick={() => handleSelectLocalFile(f.path, 'staged')}
+                                >
+                                  <span className="file-item-status file-item-status--staged">{f.status === 'added' ? 'A' : f.status === 'deleted' ? 'D' : f.status === 'renamed' ? 'R' : 'M'}</span>
+                                  <span className="file-item-path">{f.path}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      <div className="file-section">
+                        <div className="file-section-header">
+                          <label className="file-section-checkall">
+                            <input
+                              type="checkbox"
+                              checked={localStatus.unstaged.length > 0 && localStatus.unstaged.every(f => selectedUnstagedFiles[f.path])}
+                              onChange={handleToggleAllUnstaged}
+                            />
+                            <span className="file-section-title">{t('local.unstaged')} ({localStatus.unstaged.length})</span>
+                          </label>
+                        </div>
+                        <div className="file-section-list">
+                          {localStatus.unstaged.length === 0 ? (
+                            <p className="file-section-empty">{t('local.noUnstaged')}</p>
+                          ) : (
+                            localStatus.unstaged.map((f) => (
+                              <div key={f.path} className="file-item-row">
+                                <label className="file-item-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!selectedUnstagedFiles[f.path]}
+                                    onChange={() => handleToggleUnstagedFile(f.path)}
+                                  />
+                                </label>
+                                <div
+                                  className={`file-item${selectedLocalFile === f.path && selectedLocalFileType === 'unstaged' ? ' file-item--selected' : ''}`}
+                                  onClick={() => handleSelectLocalFile(f.path, 'unstaged')}
+                                >
+                                  <span className="file-item-status file-item-status--unstaged">{f.status === 'untracked' ? 'U' : f.status === 'deleted' ? 'D' : 'M'}</span>
+                                  <span className="file-item-path">{f.path}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="local-main">
+                  {!selectedLocalFile ? (
+                    <p className="local-diff-empty">{t('local.selectFile')}</p>
+                  ) : localFileDiffLoading ? (
+                    <p className="local-diff-loading">{t('common.loading')}</p>
+                  ) : (
+                    <div className="local-diff-view">
+                      <div className="local-diff-header">
+                        <span className="local-diff-file">{selectedLocalFile}</span>
+                        <span className="local-diff-type">{selectedLocalFileType === 'staged' ? t('local.stagedType') : t('local.unstagedType')}</span>
+                      </div>
+                      <div className="side-by-side-diff">
+                        <div className="side-by-side-header">
+                          <div className="side-by-side-label">{t('local.original')}</div>
+                          <div className="side-by-side-label">{t('local.modified')}</div>
+                        </div>
+                        <div className="side-by-side-body">
+                          {localFileDiff.map((row, i) => (
+                            <div key={i} className="diff-row">
+                              {row.oldContent !== null ? (
+                                <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
+                                  <span className="diff-line-num">{row.oldLine}</span>
+                                  <span className="diff-line-content">{row.oldContent}</span>
+                                </div>
+                              ) : (
+                                <div className="diff-cell" />
+                              )}
+                              {row.newContent !== null ? (
+                                <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
+                                  <span className="diff-line-num">{row.newLine}</span>
+                                  <span className="diff-line-content">{row.newContent}</span>
+                                </div>
+                              ) : (
+                                <div className="diff-cell" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

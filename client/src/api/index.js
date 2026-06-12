@@ -72,3 +72,19 @@ export function saveLastPath(dirPath) {
 export function getLastPath() {
   return axios.get(`${API_BASE_URL}/api/last-path`).then(res => res.data.lastPath);
 }
+
+export function fetchLocalStatus(dirPath) {
+  return axios.post(`${API_BASE_URL}/api/local-status`, { dirPath }).then(res => res.data);
+}
+
+export function fetchLocalFileDiff(dirPath, filePath, type) {
+  return axios.post(`${API_BASE_URL}/api/local-file-diff`, { dirPath, filePath, type }).then(res => res.data);
+}
+
+export function commitChanges(dirPath, message, selectedFiles) {
+  return axios.post(`${API_BASE_URL}/api/local-commit`, { dirPath, message, selectedFiles }).then(res => res.data);
+}
+
+export function commitAndPush(dirPath, message, selectedFiles) {
+  return axios.post(`${API_BASE_URL}/api/local-commit-push`, { dirPath, message, selectedFiles }).then(res => res.data);
+}

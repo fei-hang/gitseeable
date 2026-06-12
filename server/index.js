@@ -366,6 +366,135 @@ app.post('/api/commit-file-diff', async (req, res) => {
   }
 });
 
+function parseDiff(diffOutput) {
+  const rows = [];
+  const lines = diffOutput.split('\n');
+  let oldLineNum = 0;
+  let newLineNum = 0;
+
+  for (const line of lines) {
+    const hunkMatch = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+    if (hunkMatch) {
+      oldLineNum = parseInt(hunkMatch[1], 10);
+      newLineNum = parseInt(hunkMatch[3], 10);
+      continue;
+    }
+    if (line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('diff --git') || line.startsWith('index ')) {
+      continue;
+    }
+    if (!line) continue;
+
+    if (line.startsWith(' ')) {
+      const content = line.slice(1);
+      rows.push({ oldLine: oldLineNum++, oldContent: content, oldType: 'normal', newLine: newLineNum++, newContent: content, newType: 'normal' });
+    } else if (line.startsWith('-')) {
+      rows.push({ oldLine: oldLineNum++, oldContent: line.slice(1), oldType: 'remove', newLine: null, newContent: null, newType: null });
+    } else if (line.startsWith('+')) {
+      rows.push({ oldLine: null, oldContent: null, oldType: null, newLine: newLineNum++, newContent: line.slice(1), newType: 'add' });
+    }
+  }
+
+  return rows;
+}
+
+// 获取本地修改状态
+app.post('/api/local-status', async (req, res) => {
+  try {
+    const { dirPath } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+    const raw = await git.raw(['status', '--porcelain']);
+    const staged = [];
+    const unstaged = [];
+    const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.length >= 3);
+    for (const line of lines) {
+      const idx = line[0];
+      const wd = line[1];
+      const filePath = line.slice(3);
+      if (idx !== ' ' && idx !== '?' && idx !== '!') {
+        staged.push({ path: filePath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
+      }
+      if (idx === '?' && wd === '?') {
+        unstaged.push({ path: filePath, status: 'untracked' });
+      } else if (wd !== ' ' && idx !== '?') {
+        unstaged.push({ path: filePath, status: wd === 'M' ? 'modified' : wd === 'D' ? 'deleted' : wd });
+      }
+    }
+    res.json({ staged, unstaged });
+  } catch (error) {
+    console.error('获取本地状态时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取本地文件 diff
+app.post('/api/local-file-diff', async (req, res) => {
+  try {
+    const { dirPath, filePath, type } = req.body;
+    if (!dirPath || !filePath || !type) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const args = ['diff', '--no-color'];
+    if (type === 'staged') args.push('--cached');
+    args.push('--', filePath);
+    const diffOutput = await git.raw(args);
+    const rows = parseDiff(diffOutput);
+    res.json({ filePath, type, rows });
+  } catch (error) {
+    console.error('获取文件diff时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 本地提交（仅提交选中的文件）
+app.post('/api/local-commit', async (req, res) => {
+  try {
+    const { dirPath, message, selectedFiles } = req.body;
+    if (!dirPath || !message) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    if (!selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '请选择要提交的文件' });
+    }
+    const git = getGit(dirPath);
+    await git.reset();
+    for (const file of selectedFiles) {
+      await git.add(file);
+    }
+    await git.commit(message);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('提交时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 本地提交并推送（仅提交选中的文件）
+app.post('/api/local-commit-push', async (req, res) => {
+  try {
+    const { dirPath, message, selectedFiles } = req.body;
+    if (!dirPath || !message) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    if (!selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '请选择要提交的文件' });
+    }
+    const git = getGit(dirPath);
+    await git.reset();
+    for (const file of selectedFiles) {
+      await git.add(file);
+    }
+    await git.commit(message);
+    const branch = (await git.branchLocal()).current;
+    await git.push('origin', branch);
+    res.json({ ok: true, branch });
+  } catch (error) {
+    console.error('提交并推送时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const DATA_FILE = path.join(__dirname, 'opencode.json');
 
 // 保存上次检查的路径
