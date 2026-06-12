@@ -44,6 +44,12 @@ package.json    — root, only depends on concurrently
 - **React conventions** — functional components + hooks, `handle*` event handler names, one component per file, no PropTypes.
 - **All API endpoints** — defined in `server/index.js` (single file, ~360 lines). REST: `GET /api/drives`, remainder are `POST` calls.
 
+## Quirks (continued)
+
+- **Dev servers are long-lived processes** — Never use `bash` with `npm run dev`, `node server/index.js`, `npx vite`, or any other command that starts a server. The bash tool waits for the process to exit, but a dev server runs until killed, so the tool will hang until timeout (~2 min) and appear to "freeze". *The tool runs in a fresh shell each time — even a background `&` or `Start-Process` won't keep it alive.*
+  - **To test if a server starts:** use a short timeout (e.g. `8000ms`) and expect the shell tool to be killed by timeout — that's normal and means the server booted successfully. Alternatively, start the server once interactively in a separate terminal *before* calling the agent.
+  - **To verify an endpoint:** if a server is already running in a terminal you opened manually, use `Invoke-WebRequest` / `curl` to hit it — that exits immediately and won't hang.
+
 ## OpenCode skills
 
 Relevant skills loaded from `.opencode/skills/`:
