@@ -820,17 +820,20 @@ function GitVisualizer() {
                     value={commitMessage}
                     onChange={(e) => setCommitMessage(e.target.value)}
                   />
-                  <div className="commit-actions">
-                    <button
-                      className="btn btn--primary"
-                      disabled={!commitMessage.trim() || commitLoading}
-                      onClick={handleCommit}
-                     >{commitLoading ? <span className="btn-spinner" /> : null}{t('local.commit')}</button>
-                    <button
-                      className="btn btn--primary"
-                      disabled={!commitMessage.trim() || commitLoading}
-                      onClick={handleCommitAndPush}
-                    >{commitLoading ? <span className="btn-spinner" /> : null}{t('local.commitPush')}</button>
+                  <div className="commit-actions-wrap">
+                    {commitLoading && <div className="commit-progress-bar" />}
+                    <div className="commit-actions">
+                      <button
+                        className="btn btn--primary"
+                        disabled={!commitMessage.trim() || commitLoading}
+                        onClick={handleCommit}
+                      >{t('local.commit')}</button>
+                      <button
+                        className="btn btn--primary"
+                        disabled={!commitMessage.trim() || commitLoading}
+                        onClick={handleCommitAndPush}
+                      >{t('local.commitPush')}</button>
+                    </div>
                   </div>
                   {localStatusLoading ? (
                     <p className="local-status-loading">{t('common.loading')}</p>
