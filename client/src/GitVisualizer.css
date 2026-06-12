@@ -336,20 +336,6 @@
   border-right: none !important;
 }
 
-.sidebar-collapsed-tab {
-  width: 4px;
-  flex-shrink: 0;
-  cursor: pointer;
-  background: var(--border);
-  transition: background 150ms var(--ease-out);
-  position: relative;
-  z-index: 10;
-}
-
-.sidebar-collapsed-tab:hover {
-  background: var(--primary);
-}
-
 .analyze-main {
   flex: 1;
   overflow-y: auto;
@@ -803,6 +789,22 @@
   border-right: 1px solid var(--border);
   padding-right: var(--space-4);
   overflow-y: auto;
+  min-width: 200px;
+}
+
+.local-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 150ms var(--ease-out);
+  position: relative;
+  z-index: 10;
+}
+
+.local-resize-handle:hover,
+.local-resize-handle:active {
+  background: var(--primary);
 }
 
 .commit-msg-input {
@@ -892,6 +894,28 @@
   flex-shrink: 0;
 }
 
+.btn--stage + .btn--stage {
+  margin-left: 6px;
+}
+
+.btn--danger {
+  background-color: var(--danger);
+  color: var(--text-inverse);
+}
+
+.btn--danger:hover {
+  background-color: #dc2626;
+}
+
+.btn--danger:disabled {
+  background-color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.btn--danger:disabled:hover {
+  background-color: var(--text-tertiary);
+}
+
 .file-section-checkall {
   display: inline-flex;
   align-items: center;
@@ -946,6 +970,7 @@
 }
 
 .file-item {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -953,6 +978,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  min-width: 0;
   transition: background var(--duration-fast) var(--ease-out);
 }
 
@@ -1104,6 +1130,7 @@
 
 .diff-row {
   display: flex;
+  position: relative;
 }
 
 .diff-cell {
@@ -1112,12 +1139,36 @@
   padding: 0 4px;
   display: flex;
   align-items: stretch;
-  border-right: 1px solid var(--border-light);
   min-height: 18px;
+}
+
+.diff-cell:first-child {
+  width: var(--left-pct, 50%);
+  flex: none;
+  min-width: 200px;
+  border-right: 1px solid var(--border-light);
 }
 
 .diff-cell:last-child {
   border-right: none;
+}
+
+.diff-handle {
+  position: absolute;
+  left: var(--left-pct, 50%);
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  margin-left: -2px;
+  cursor: col-resize;
+  z-index: 5;
+  background: transparent;
+  transition: background 100ms var(--ease-out);
+}
+
+.diff-handle:hover,
+.diff-handle:active {
+  background: var(--primary);
 }
 
 .diff-cell--remove {

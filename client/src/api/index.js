@@ -85,6 +85,10 @@ export function fetchLocalFileDiff(dirPath, filePath, type) {
   return axios.post(`${API_BASE_URL}/api/local-file-diff`, { dirPath, filePath, type }).then(res => res.data);
 }
 
+export function restoreFile(dirPath, selectedFiles) {
+  return axios.post(`${API_BASE_URL}/api/local-restore-file`, { dirPath, selectedFiles }).then(res => res.data);
+}
+
 export function stageFiles(dirPath, selectedFiles) {
   return axios.post(`${API_BASE_URL}/api/local-stage-files`, { dirPath, selectedFiles }).then(res => res.data);
 }

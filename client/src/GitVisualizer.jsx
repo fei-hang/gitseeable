@@ -9,7 +9,7 @@ import {
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
   fetchCommitFiles, fetchCommitFileDiff,
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
-  stageFiles, fetchUiState, saveUiState, fetchPendingCommits
+  stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -519,6 +519,52 @@ function GitVisualizer() {
     setSelectedStagedFiles(next);
   };
 
+  const [restoreLoading, setRestoreLoading] = useState(false);
+
+  const handleRestoreSelected = async () => {
+    const selectedPaths = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k]);
+    if (selectedPaths.length === 0) {
+      Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
+      return;
+    }
+    const selectedObjs = (localStatus?.unstaged || []).filter(f => selectedUnstagedFiles[f.path]);
+    const restorable = selectedObjs.filter(f => f.status !== 'untracked');
+    const skipped = selectedObjs.filter(f => f.status === 'untracked');
+    if (restorable.length === 0) {
+      Swal.fire({ icon: 'info', title: t('local.restore'), text: t('local.restoreSkipAll') });
+      return;
+    }
+    let confirmText = t('local.restoreConfirm', { count: restorable.length });
+    if (skipped.length > 0) {
+      confirmText += '\n' + t('local.restoreSkipCount', { count: skipped.length });
+    }
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: t('local.restore'),
+      text: confirmText,
+      showCancelButton: true,
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    });
+    if (!result.isConfirmed) return;
+    setRestoreLoading(true);
+    try {
+      const restorePaths = restorable.map(f => f.path);
+      await restoreFile(currentPath, restorePaths);
+      setSelectedUnstagedFiles({});
+      if (selectedLocalFile && selectedLocalFileType === 'unstaged') {
+        setSelectedLocalFile(null);
+        setSelectedLocalFileType(null);
+        setLocalFileDiff([]);
+      }
+      await handleLoadLocalStatus();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: t('local.restoreFail'), text: err.response?.data?.error || err.message });
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
   const handleStageSelected = async () => {
     const selectedFiles = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k]);
     if (selectedFiles.length === 0) {
@@ -641,10 +687,6 @@ function GitVisualizer() {
     setSidebarWidth(Math.max(0, startWidth.current + delta));
   }, []);
 
-  const handleSidebarExpand = () => {
-    if (isSidebarCollapsed) setSidebarWidth(260);
-  };
-
   const handleSidebarMouseUp = useCallback(() => {
     if (!isDragging.current) return;
     isDragging.current = false;
@@ -660,6 +702,76 @@ function GitVisualizer() {
       document.removeEventListener('mouseup', handleSidebarMouseUp);
     };
   }, [handleSidebarMouseMove, handleSidebarMouseUp]);
+
+  const [localSidebarWidth, setLocalSidebarWidth] = useState(280);
+  const localSidebarDragging = useRef(false);
+  const localViewRef = useRef(null);
+  const localDragStartX = useRef(0);
+  const localDragStartW = useRef(280);
+
+  const handleLocalSidebarMouseDown = (e) => {
+    localSidebarDragging.current = true;
+    localDragStartX.current = e.clientX;
+    localDragStartW.current = localSidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!localSidebarDragging.current) return;
+      const el = localViewRef.current;
+      if (!el) return;
+      const delta = e.clientX - localDragStartX.current;
+      const w = Math.min(el.offsetWidth * 0.6, Math.max(200, localDragStartW.current + delta));
+      setLocalSidebarWidth(w);
+    };
+    const onUp = () => {
+      if (!localSidebarDragging.current) return;
+      localSidebarDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [localSidebarWidth]);
+
+  const [diffSplitPct, setDiffSplitPct] = useState(0.5);
+  const diffDragging = useRef(false);
+  const diffBodyRef = useRef(null);
+
+  const handleDiffMouseDown = (e) => {
+    diffDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!diffDragging.current) return;
+      const el = diffBodyRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      setDiffSplitPct(Math.min(0.85, Math.max(0.2, pct)));
+    };
+    const onUp = () => {
+      if (!diffDragging.current) return;
+      diffDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   const handleToggleCommit = async (commitHash) => {
     if (expandedCommit === commitHash) {
@@ -754,8 +866,7 @@ function GitVisualizer() {
               </>
             )}
           </div>
-          <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} onClick={handleSidebarExpand} />
-          {isSidebarCollapsed && <div className="sidebar-collapsed-tab" onClick={() => setSidebarWidth(260)} />}
+          <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} />
           <div className="analyze-main">
             {activeTab === 'commits' && (
               <>
@@ -887,8 +998,8 @@ function GitVisualizer() {
               </div>
             )}
             {activeTab === 'local' && (
-              <div className="local-view">
-                <div className="local-sidebar">
+              <div className="local-view" ref={localViewRef}>
+                <div className="local-sidebar" style={{ width: localSidebarWidth }}>
                   <textarea
                     className="commit-msg-input"
                     placeholder={t('local.commitPlaceholder')}
@@ -965,6 +1076,7 @@ function GitVisualizer() {
                             {localStatus.unstaged.length > 0 && (
                               <div className="commit-actions-wrap">
                                 {stageLoading && <div className="commit-progress-bar" />}
+                                <button className="btn btn--danger btn--stage" disabled={restoreLoading} onClick={handleRestoreSelected}>{t('local.restore')}</button>
                                 <button className="btn btn--primary btn--stage" disabled={stageLoading} onClick={handleStageSelected}>{t('local.stage')}</button>
                               </div>
                             )}
@@ -997,6 +1109,7 @@ function GitVisualizer() {
                     </div>
                   )}
                 </div>
+                <div className="local-resize-handle" onMouseDown={handleLocalSidebarMouseDown} />
                 <div className="local-main">
                   {!selectedLocalFile ? (
                     <p className="local-diff-empty">{t('local.selectFile')}</p>
@@ -1010,10 +1123,11 @@ function GitVisualizer() {
                       </div>
                       <div className="side-by-side-diff">
                         <div className="side-by-side-header">
-                          <div className="side-by-side-label">{t('local.original')}</div>
+                          <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>
                         </div>
-                        <div className="side-by-side-body">
+                        <div className="side-by-side-body" ref={diffBodyRef} style={{ '--left-pct': `${diffSplitPct * 100}%` }}>
+                          <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
                           {localFileDiff.map((row, i) => (
                             <div key={i} className="diff-row">
                               {row.oldContent !== null ? (

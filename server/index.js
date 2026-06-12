@@ -490,6 +490,29 @@ app.post('/api/local-file-diff', async (req, res) => {
   }
 });
 
+// 回退(restore)选中的未暂存文件
+app.post('/api/local-restore-file', async (req, res) => {
+  try {
+    const { dirPath, selectedFiles } = req.body;
+    if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '缺少参数或未选择文件' });
+    }
+    const git = getGit(dirPath);
+    const failed = [];
+    for (const file of selectedFiles) {
+      try {
+        await git.checkout(['--', file]);
+      } catch (e) {
+        failed.push(file);
+      }
+    }
+    res.json({ ok: true, failed });
+  } catch (error) {
+    console.error('回退文件时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 暂存选中的未暂存文件
 app.post('/api/local-stage-files', async (req, res) => {
   try {
