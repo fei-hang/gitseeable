@@ -56,7 +56,12 @@
     "emptyStatus": "没有本地修改",
     "noFilesSelected": "请选择要提交的文件",
     "stage": "暂存",
-    "stageFail": "暂存失败"
+    "stageFail": "暂存失败",
+    "pushConfirm": "确认推送",
+    "pushCancel": "已取消推送",
+    "pushNoPending": "没有待推送的提交",
+    "pushConfirmTitle": "将推送到 {{branch}}",
+    "pushConfirmCount": "共 {{count}} 个提交"
   },
   "branch": {
     "local": "本地分支",

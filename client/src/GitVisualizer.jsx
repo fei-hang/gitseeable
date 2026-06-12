@@ -8,8 +8,8 @@ import {
   checkoutBranch, createBranch, mergeBranch, renameBranch,
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
   fetchCommitFiles, fetchCommitFileDiff,
-  fetchLocalStatus, fetchLocalFileDiff, commitChanges, commitAndPush,
-  stageFiles, fetchUiState, saveUiState
+  fetchLocalStatus, fetchLocalFileDiff, commitChanges,
+  stageFiles, fetchUiState, saveUiState, fetchPendingCommits
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -319,11 +319,39 @@ function GitVisualizer() {
     }
   };
 
+  const escapeHtml = (str) => {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  };
+
+  const confirmPushDialog = async (branch) => {
+    const { commits } = await fetchPendingCommits(currentPath, branch);
+    if (!commits || commits.length === 0) {
+      Swal.fire({ icon: 'info', title: t('local.pushNoPending'), timer: 1500, showConfirmButton: false });
+      return null;
+    }
+    const rows = commits.map(c =>
+      `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666">${escapeHtml(c.hash.substring(0, 7))}</td><td style="padding:3px 8px">${escapeHtml(c.message)}</td></tr>`
+    ).join('');
+    const result = await Swal.fire({
+      title: t('local.pushConfirmTitle', { branch }),
+      html: `<div style="margin-bottom:8px;color:#888;font-size:13px">${t('local.pushConfirmCount', { count: commits.length })}</div><table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table>`,
+      showCancelButton: true,
+      confirmButtonText: t('local.pushConfirm'),
+      cancelButtonText: t('common.cancel'),
+    });
+    return result.isConfirmed ? branch : null;
+  };
+
   const handlePushBranch = async (branch) => {
     setLoading(true);
     try {
+      const confirmed = await confirmPushDialog(branch);
+      if (!confirmed) return;
       await pushBranch(currentPath, branch);
       Swal.fire({ icon: 'success', title: i18n.t('dialog.push.success', { branch }), timer: 2000, showConfirmButton: false });
+      await handleRefreshGitInfo();
     } catch (err) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.push.fail'), text: err.response?.data?.error || err.message });
     } finally {
@@ -564,15 +592,26 @@ function GitVisualizer() {
     }
     setCommitLoading(true);
     try {
-      await commitAndPush(currentPath, msg, selectedFiles);
-      Swal.fire({ icon: 'success', title: t('local.commitPushSuccess'), timer: 1500, showConfirmButton: false });
+      // Step 1: commit
+      await commitChanges(currentPath, msg, selectedFiles);
+      // Step 2: get current branch
+      let data = await handleRefreshGitInfo();
+      const branch = data.currentBranch;
+      // Step 3: confirm push dialog
+      const confirmed = await confirmPushDialog(branch);
+      if (!confirmed) {
+        Swal.fire({ icon: 'info', title: t('local.pushCancel'), timer: 1500, showConfirmButton: false });
+      } else {
+        await pushBranch(currentPath, branch);
+        data = await handleRefreshGitInfo();
+        Swal.fire({ icon: 'success', title: t('local.commitPushSuccess'), timer: 1500, showConfirmButton: false });
+      }
       setCommitMessage('');
       setLocalFileDiff([]);
       setSelectedLocalFile(null);
       await handleLoadLocalStatus();
       if (selectedBranch) await handleLoadCommits(selectedBranch);
-      const data = await handleRefreshGitInfo();
-      setSelectedBranch(data.currentBranch);
+      setSelectedBranch(branch);
     } catch (err) {
       Swal.fire({ icon: 'error', title: t('local.commitPushFail'), text: err.response?.data?.error || err.message });
     } finally {

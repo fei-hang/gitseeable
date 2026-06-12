@@ -56,7 +56,12 @@
     "emptyStatus": "No local changes",
     "noFilesSelected": "Please select files to commit",
     "stage": "Stage",
-    "stageFail": "Stage failed"
+    "stageFail": "Stage failed",
+    "pushConfirm": "Confirm Push",
+    "pushCancel": "Push cancelled",
+    "pushNoPending": "No pending commits to push",
+    "pushConfirmTitle": "Push to {{branch}}",
+    "pushConfirmCount": "{{count}} commits to push"
   },
   "branch": {
     "local": "Local Branches",

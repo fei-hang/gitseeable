@@ -246,6 +246,21 @@ app.post('/api/delete-branch', async (req, res) => {
   }
 });
 
+// 获取待推送的提交列表
+app.post('/api/pending-commits', async (req, res) => {
+  try {
+    const { dirPath, branch } = req.body;
+    if (!dirPath || !branch) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const log = await git.log([`origin/${branch}..${branch}`]);
+    res.json({ commits: log.all.map(c => ({ hash: c.hash, message: c.message, date: c.date, author: c.author_name })) });
+  } catch (error) {
+    res.json({ commits: [] });
+  }
+});
+
 // 推送分支
 app.post('/api/push', async (req, res) => {
   try {

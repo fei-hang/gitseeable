@@ -37,6 +37,10 @@ export function deleteBranch(dirPath, branch) {
   return axios.post(`${API_BASE_URL}/api/delete-branch`, { dirPath, branch }).then(res => res.data);
 }
 
+export function fetchPendingCommits(dirPath, branch) {
+  return axios.post(`${API_BASE_URL}/api/pending-commits`, { dirPath, branch }).then(res => res.data);
+}
+
 export function pushBranch(dirPath, branch) {
   return axios.post(`${API_BASE_URL}/api/push`, { dirPath, branch }).then(res => res.data);
 }
