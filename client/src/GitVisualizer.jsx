@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import Swal from 'sweetalert2';
@@ -6,7 +6,8 @@ import {
   fetchDrives, fetchDirectories, checkGit, fetchCommits,
   saveLastPath, getLastPath,
   checkoutBranch, createBranch, mergeBranch, renameBranch,
-  deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch
+  deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
+  fetchCommitFiles, fetchCommitFileDiff
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -33,11 +34,22 @@ function GitVisualizer() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [contextMenu, setContextMenu] = useState(null);
   const [activeTab, setActiveTab] = useState('commits');
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const sidebarRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(260);
   const [compareData, setCompareData] = useState(null);
   const [selectedDiffCommit, setSelectedDiffCommit] = useState(null);
   const [diffContent, setDiffContent] = useState('');
   const [diffMeta, setDiffMeta] = useState(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [expandedCommit, setExpandedCommit] = useState(null);
+  const [commitFiles, setCommitFiles] = useState(null);
+  const [commitFilesLoading, setCommitFilesLoading] = useState(false);
+  const [expandedFile, setExpandedFile] = useState(null);
+  const [fileDiff, setFileDiff] = useState('');
+  const [fileDiffLoading, setFileDiffLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -391,6 +403,76 @@ function GitVisualizer() {
     i18n.changeLanguage(next);
   };
 
+  const handleSidebarMouseDown = useCallback((e) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = sidebarRef.current?.offsetWidth || sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth]);
+
+  const handleSidebarMouseMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    const delta = e.clientX - startX.current;
+    setSidebarWidth(Math.max(80, startWidth.current + delta));
+  }, []);
+
+  const handleSidebarMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleSidebarMouseMove);
+    document.addEventListener('mouseup', handleSidebarMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleSidebarMouseMove);
+      document.removeEventListener('mouseup', handleSidebarMouseUp);
+    };
+  }, [handleSidebarMouseMove, handleSidebarMouseUp]);
+
+  const handleToggleCommit = async (commitHash) => {
+    if (expandedCommit === commitHash) {
+      setExpandedCommit(null);
+      setCommitFiles(null);
+      setExpandedFile(null);
+      setFileDiff('');
+      return;
+    }
+    setExpandedCommit(commitHash);
+    setExpandedFile(null);
+    setFileDiff('');
+    setCommitFilesLoading(true);
+    try {
+      const data = await fetchCommitFiles(currentPath, commitHash);
+      setCommitFiles(data.files);
+    } catch (_) {
+      setCommitFiles([]);
+    } finally {
+      setCommitFilesLoading(false);
+    }
+  };
+
+  const handleToggleFile = async (commitHash, filePath) => {
+    if (expandedFile === filePath) {
+      setExpandedFile(null);
+      setFileDiff('');
+      return;
+    }
+    setExpandedFile(filePath);
+    setFileDiffLoading(true);
+    try {
+      const data = await fetchCommitFileDiff(currentPath, commitHash, filePath);
+      setFileDiff(data.diff);
+    } catch (_) {
+      setFileDiff('Error loading diff');
+    } finally {
+      setFileDiffLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (view === 'analyze' && selectedBranch && activeTab === 'commits') {
       handleLoadCommits(selectedBranch);
@@ -416,7 +498,7 @@ function GitVisualizer() {
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
         </div>
         <div className="analyze-body">
-          <div className="analyze-sidebar">
+          <div className="analyze-sidebar" ref={sidebarRef} style={{ width: sidebarWidth }}>
             <BranchList
               title={t('branch.local')}
               branches={gitInfo.localBranches}
@@ -436,6 +518,7 @@ function GitVisualizer() {
               onContextMenuOpen={handleContextMenuOpen}
             />
           </div>
+          <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} />
           <div className="analyze-main">
             {activeTab === 'commits' && (
               <>
@@ -451,7 +534,7 @@ function GitVisualizer() {
                   ) : (
                     commits.map((c) => (
                       <div key={c.hash} className="commit-item">
-                        <div className="commit-content">
+                        <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
                           <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
                           <div className="commit-meta">
                             <span className="commit-hash">{c.hash.slice(0, 7)}</span>
@@ -459,6 +542,42 @@ function GitVisualizer() {
                             <span className="commit-date">{c.date?.split('T')[0] || c.date}</span>
                           </div>
                         </div>
+                        {expandedCommit === c.hash && (
+                          <div className="commit-files">
+                            {commitFilesLoading ? (
+                              <p className="commit-files-loading">{t('common.loading')}</p>
+                            ) : commitFiles && commitFiles.length > 0 ? (
+                              commitFiles.map((f, i) => (
+                                <div key={i} className="commit-file-item">
+                                  <div className="commit-file-header" onClick={() => handleToggleFile(c.hash, f.filePath)}>
+                                    <span className={`commit-file-status commit-file-status--${f.status.toLowerCase()}`}>
+                                      {f.status === 'A' ? t('commit.fileAdded') : f.status === 'D' ? t('commit.fileDeleted') : t('commit.fileModified')}
+                                    </span>
+                                    <span className="commit-file-path">{f.filePath}</span>
+                                    <span className="commit-file-toggle">{expandedFile === f.filePath ? '▼' : '▶'}</span>
+                                  </div>
+                                  {expandedFile === f.filePath && (
+                                    <pre className="commit-file-diff">
+                                      {fileDiffLoading ? (
+                                        <p className="commit-files-loading">{t('common.loading')}</p>
+                                      ) : (
+                                        fileDiff.split('\n').map((line, li) => {
+                                          let cls = '';
+                                          if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
+                                          else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-remove';
+                                          else if (line.startsWith('@@')) cls = 'diff-hunk';
+                                          return <div key={li} className={cls}>{line}</div>;
+                                        })
+                                      )}
+                                    </pre>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <p className="commit-files-loading">{t('commit.filesEmpty')}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

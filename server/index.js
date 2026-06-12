@@ -325,6 +325,47 @@ app.post('/api/commit-diff', async (req, res) => {
   }
 });
 
+// 获取某次 commit 修改的文件列表
+app.post('/api/commit-files', async (req, res) => {
+  try {
+    const { dirPath, commitHash } = req.body;
+    if (!dirPath || !commitHash) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const raw = await git.raw(['diff-tree', '--no-commit-id', '-r', '--name-status', commitHash]);
+    const files = raw.trim().split('\n').filter(Boolean).map(line => {
+      const [status, ...fileParts] = line.split('\t');
+      return { status, filePath: fileParts.join('\t') };
+    });
+    res.json({ commitHash, files });
+  } catch (error) {
+    console.error('获取commit文件列表时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取某次 commit 中某个文件的 diff
+app.post('/api/commit-file-diff', async (req, res) => {
+  try {
+    const { dirPath, commitHash, filePath } = req.body;
+    if (!dirPath || !commitHash || !filePath) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const raw = await git.raw(['show', commitHash, '--', filePath, '--no-color']);
+    const diffLines = raw.split('\n').filter(line =>
+      (line.startsWith('+') || line.startsWith('-')) &&
+      !line.startsWith('--- ') && !line.startsWith('+++ ')
+    );
+    const diff = diffLines.join('\n');
+    res.json({ commitHash, filePath, diff });
+  } catch (error) {
+    console.error('获取文件diff时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const DATA_FILE = path.join(__dirname, 'opencode.json');
 
 // 保存上次检查的路径

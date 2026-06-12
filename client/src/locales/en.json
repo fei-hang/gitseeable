@@ -10,7 +10,8 @@
     "success": "Success",
     "fail": "Failed",
     "error": "Error",
-    "ok": "OK"
+    "ok": "OK",
+    "expand": "Expand"
   },
   "select": {
     "title": "Git Repository Visualizer",
@@ -42,7 +43,11 @@
     "empty": "No commits on this branch",
     "count": "{{count}} commits",
     "prevPage": "Prev",
-    "nextPage": "Next"
+    "nextPage": "Next",
+    "fileAdded": "Added",
+    "fileDeleted": "Deleted",
+    "fileModified": "Modified",
+    "filesEmpty": "No file changes"
   },
   "compare": {
     "hasNot": "{{branch1}} has, {{branch2}} does not",

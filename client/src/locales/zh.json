@@ -10,7 +10,8 @@
     "success": "成功",
     "fail": "失败",
     "error": "错误",
-    "ok": "确定"
+    "ok": "确定",
+    "expand": "展开"
   },
   "select": {
     "title": "Git 仓库可视化工具",
@@ -42,7 +43,11 @@
     "empty": "该分支没有提交记录",
     "count": "{{count}} 个提交",
     "prevPage": "上一页",
-    "nextPage": "下一页"
+    "nextPage": "下一页",
+    "fileAdded": "新增",
+    "fileDeleted": "删除",
+    "fileModified": "修改",
+    "filesEmpty": "无文件变更"
   },
   "compare": {
     "hasNot": "{{branch1}} 有，{{branch2}} 没有",

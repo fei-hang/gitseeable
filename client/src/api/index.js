@@ -53,6 +53,14 @@ export function getCommitDiff(dirPath, commitHash) {
   return axios.post(`${API_BASE_URL}/api/commit-diff`, { dirPath, commitHash }).then(res => res.data);
 }
 
+export function fetchCommitFiles(dirPath, commitHash) {
+  return axios.post(`${API_BASE_URL}/api/commit-files`, { dirPath, commitHash }).then(res => res.data);
+}
+
+export function fetchCommitFileDiff(dirPath, commitHash, filePath) {
+  return axios.post(`${API_BASE_URL}/api/commit-file-diff`, { dirPath, commitHash, filePath }).then(res => res.data);
+}
+
 export function rebaseBranch(dirPath, targetBranch) {
   return axios.post(`${API_BASE_URL}/api/rebase-branch`, { dirPath, targetBranch }).then(res => res.data);
 }
