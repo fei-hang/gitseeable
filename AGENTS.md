@@ -2,17 +2,26 @@
 
 ## Project
 
-Full-stack Git repo visualizer (React 19 + Vite 5 frontend, Express 5 backend, `simple-git` for server-side Git ops). Windows-only drive enumeration. No database; state is ephemeral or persisted to `server/opencode.json`.
+Full-stack Git repo visualizer (React 19 + Vite 5 frontend, Express 5 backend, `simple-git` for server-side Git ops). Windows-only drive enumeration. No database; state is ephemeral or persisted to `server/opencode.json` (gitignored).
 
-No tests exist anywhere in the project. No CI/CD. No formatter (no Prettier). No TypeScript in source (`.d.ts` devDeps are IDE-only).
+No tests, no CI/CD, no Prettier, no TypeScript in source (`.d.ts` devDeps are IDE-only).
+
+## Git config (local, this repo only)
+
+- `user.name = 张飞航`
+- `user.email = feihangzhang@163.com`
+- Remote: `origin` → `https://github.com/fei-hang/gitseeable.git`
+- All 6 commits rewrote with `git filter-branch` — use `git push -f origin main` after any history rewrite
 
 ## Dependencies
 
-Three independent `npm install` calls — there are **no npm workspaces**:
+Three independent `npm install` calls — **no npm workspaces**:
 
 ```
 npm install && cd client && npm install && cd ../server && npm install
 ```
+
+Node 20.19.3 required (via nvm). Use `nvm use 20.19.3` before any npm operations.
 
 ## Commands
 
@@ -30,28 +39,43 @@ npm install && cd client && npm install && cd ../server && npm install
 client/         — React ESM app (type: "module")
 server/         — Express CJS app (require)
 package.json    — root, only depends on concurrently
+.opencode/      — skill definitions (agent-guide, i18n, frontend-spec, ui-new)
 ```
 
-## Quirks
+## API endpoints
 
-- **Client ESM, server CommonJS** — never assume the same module system.
-- **Express 5** — API differs from Express 4 (e.g. req.query, error handling).
-- **Vite proxy** — `client/vite.config.js` proxies `/api` → `localhost:3001`. `API_BASE_URL` is `""` (empty string).
-- **i18n** — i18next + react-i18next. Default locale is `zh`. Keys use dot notation. Translations in `client/src/locales/{zh,en}.json`.
-- **CSS** — plain `.css` files, BEM-like class naming: `btn--primary`, `branch-item--selected`. Context menu positioning via `--menu-x`/`--menu-y` CSS custom properties.
-- **Dangerous actions** — context menu actions use a `danger` boolean property to mark destructive ops (styled red).
-- **ESLint** — flat config at `client/eslint.config.js`. Run `cd client && npm run lint`.
-- **React conventions** — functional components + hooks, `handle*` event handler names, one component per file, no PropTypes.
-- **All API endpoints** — defined in `server/index.js` (single file, ~360 lines). REST: `GET /api/drives`, remainder are `POST` calls.
+All in `server/index.js` (~365 lines). REST: `GET /api/drives`, remainder are `POST` calls.
 
-## Quirks (continued)
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/commits` | Get commit list for a ref |
+| `POST /api/branches` | List branches (current + all) |
+| `POST /api/checkout` | Checkout branch or create-and-checkout |
+| `POST /api/branch` | Create / rename / delete branch |
+| `POST /api/commit-files` | List changed files in a commit |
+| `POST /api/commit-file-diff` | Get per-file diff (only +/- lines, no metadata) |
+| `GET /api/drives` | Windows drive enumeration |
 
-- **Dev servers are long-lived processes** — Never use `bash` with `npm run dev`, `node server/index.js`, `npx vite`, or any other command that starts a server. The bash tool waits for the process to exit, but a dev server runs until killed, so the tool will hang until timeout (~2 min) and appear to "freeze". *The tool runs in a fresh shell each time — even a background `&` or `Start-Process` won't keep it alive.*
-  - **To test if a server starts:** use a short timeout (e.g. `8000ms`) and expect the shell tool to be killed by timeout — that's normal and means the server booted successfully. Alternatively, start the server once interactively in a separate terminal *before* calling the agent.
-  - **To verify an endpoint:** if a server is already running in a terminal you opened manually, use `Invoke-WebRequest` / `curl` to hit it — that exits immediately and won't hang.
+## Frontend conventions
+
+- **CSS**: Design tokens in `client/src/index.css` (`:root` variables), plain `.css` files, BEM-like naming: `btn--primary`, `branch-item--selected`. Context menu positioning via `--menu-x`/`--menu-y` CSS custom properties.
+- **i18n**: i18next + react-i18next. Default locale is `zh`. Keys use dot notation. Files in `client/src/locales/{zh,en}.json`.
+- **Components**: Functional + hooks, `handle*` event handlers, one file per component, no PropTypes.
+- **Sidebar**: Resizable via drag handle (min-width 80px). Commit items expandable: click commit → files list → click file → per-file diff.
+- **Dangerous actions**: Context menu `danger` boolean property styles destructive ops red.
+
+## Dev server quirks
+
+- Dev servers are long-lived — **never** use `bash` with `npm run dev`, `node server/index.js`, or `npx vite`. The tool waits for process exit and will hang until ~2 min timeout.
+  - **To test startup:** set a short timeout (`8000ms`) — a timeout kill is normal success.
+  - **To verify endpoints:** if server is already running in a separate terminal, use `Invoke-WebRequest` / `curl` — these exit immediately.
+- **Express 5**: API differs from Express 4 (`req.query`, error handling).
+- **Vite proxy**: `client/vite.config.js` proxies `/api` → `localhost:3001`. `API_BASE_URL` is `""` (empty string).
+- **Module systems**: `client/` is ESM (type: "module"), `server/` is CommonJS (`require`).
 
 ## OpenCode skills
 
-Relevant skills loaded from `.opencode/skills/`:
+Loaded from `.opencode/skills/`:
 - `frontend-spec` — coding conventions (2-space, single quotes, BEM CSS, etc.)
 - `dy-skill-i18n` — i18n translation workflow
+- `ui-new` — UI component generation and design system
