@@ -825,12 +825,12 @@ function GitVisualizer() {
                       className="btn btn--primary"
                       disabled={!commitMessage.trim() || commitLoading}
                       onClick={handleCommit}
-                    >{t('local.commit')}</button>
+                     >{commitLoading ? <span className="btn-spinner" /> : null}{t('local.commit')}</button>
                     <button
                       className="btn btn--primary"
                       disabled={!commitMessage.trim() || commitLoading}
                       onClick={handleCommitAndPush}
-                    >{t('local.commitPush')}</button>
+                    >{commitLoading ? <span className="btn-spinner" /> : null}{t('local.commitPush')}</button>
                   </div>
                   {localStatusLoading ? (
                     <p className="local-status-loading">{t('common.loading')}</p>
