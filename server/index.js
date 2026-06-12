@@ -42,16 +42,32 @@ app.post('/api/check-git', async (req, res) => {
     }
 
     const git = getGit(dirPath);
-    const [localBranches, remoteBranches] = await Promise.all([
+    const [localBranches, remoteBranches, remoteNames] = await Promise.all([
       git.branchLocal(),
-      git.branch(['-r'])
+      git.branch(['-r']),
+      git.getRemotes()
     ]);
+    const remotePrefix = remoteNames.length > 0 ? `${remoteNames[0].name}/` : 'origin/';
+
+    const localWithStatus = await Promise.all(localBranches.all.map(async (name) => {
+      let ahead = 0, behind = 0;
+      try {
+        const upstream = remotePrefix + name;
+        const count = await git.raw(['rev-list', '--left-right', '--count', `${name}...${upstream}`]);
+        const parts = count.trim().split('\t');
+        if (parts.length === 2) {
+          ahead = parseInt(parts[0], 10);
+          behind = parseInt(parts[1], 10);
+        }
+      } catch (_) {}
+      return { name, ahead, behind };
+    }));
 
     res.json({
       isGitRepo: true,
       path: dirPath,
       currentBranch: localBranches.current,
-      localBranches: localBranches.all,
+      localBranches: localWithStatus,
       remoteBranches: remoteBranches.all,
       message: 'Git仓库分析完成'
     });

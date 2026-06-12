@@ -61,7 +61,9 @@
   "branch": {
     "local": "Local Branches",
     "remote": "Remote Branches",
-    "more": "... {{count}} more"
+    "more": "... {{count}} more",
+    "ahead": "Can push ({{count}} commits)",
+    "behind": "Can pull ({{count}} commits)"
   },
   "commit": {
     "loading": "Loading...",

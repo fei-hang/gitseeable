@@ -76,6 +76,21 @@
   font-weight: 450;
 }
 
+.branch-arrow {
+  font-size: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.branch-arrow--up {
+  color: var(--success);
+}
+
+.branch-arrow--down {
+  color: #f59e0b;
+}
+
 .branch-more {
   font-size: 12px;
   color: var(--text-tertiary);

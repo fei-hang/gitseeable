@@ -61,7 +61,9 @@
   "branch": {
     "local": "本地分支",
     "remote": "远程分支",
-    "more": "... 还有 {{count}} 个"
+    "more": "... 还有 {{count}} 个",
+    "ahead": "可推送 ({{count}} 个提交)",
+    "behind": "可拉取 ({{count}} 个提交)"
   },
   "commit": {
     "loading": "加载中...",
