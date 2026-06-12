@@ -81,10 +81,22 @@ export function fetchLocalFileDiff(dirPath, filePath, type) {
   return axios.post(`${API_BASE_URL}/api/local-file-diff`, { dirPath, filePath, type }).then(res => res.data);
 }
 
+export function stageFiles(dirPath, selectedFiles) {
+  return axios.post(`${API_BASE_URL}/api/local-stage-files`, { dirPath, selectedFiles }).then(res => res.data);
+}
+
 export function commitChanges(dirPath, message, selectedFiles) {
   return axios.post(`${API_BASE_URL}/api/local-commit`, { dirPath, message, selectedFiles }).then(res => res.data);
 }
 
 export function commitAndPush(dirPath, message, selectedFiles) {
   return axios.post(`${API_BASE_URL}/api/local-commit-push`, { dirPath, message, selectedFiles }).then(res => res.data);
+}
+
+export function fetchUiState() {
+  return axios.get(`${API_BASE_URL}/api/ui-state`).then(res => res.data);
+}
+
+export function saveUiState(state) {
+  return axios.post(`${API_BASE_URL}/api/ui-state`, state).then(res => res.data);
 }

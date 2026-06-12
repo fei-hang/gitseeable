@@ -872,7 +872,24 @@
 }
 
 .file-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: var(--space-1);
+}
+
+.file-section-header .commit-actions-wrap {
+  position: relative;
+}
+
+.file-section-header .commit-progress-bar {
+  top: -6px;
+}
+
+.btn--stage {
+  padding: 4px 12px;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .file-section-checkall {
@@ -901,6 +918,8 @@
   align-items: center;
   gap: 4px;
 }
+
+
 
 .file-item-checkbox {
   flex-shrink: 0;

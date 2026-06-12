@@ -2,4 +2,4 @@ node_modules/
 dist/
 .github_repo.png
 *.log
-server/opencode.json
+server/state.json

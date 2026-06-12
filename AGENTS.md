@@ -2,7 +2,7 @@
 
 ## Project
 
-Full-stack Git repo visualizer (React 19 + Vite 5 frontend, Express 5 backend, `simple-git` for server-side Git ops). Windows-only drive enumeration. No database; state is ephemeral or persisted to `server/opencode.json` (gitignored).
+Full-stack Git repo visualizer (React 19 + Vite 5 frontend, Express 5 backend, `simple-git` for server-side Git ops). Windows-only drive enumeration. No database; state is persisted to `server/state.json` (gitignored).
 
 No tests, no CI/CD, no Prettier, no TypeScript in source (`.d.ts` devDeps are IDE-only).
 

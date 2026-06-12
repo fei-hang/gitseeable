@@ -8,7 +8,8 @@ import {
   checkoutBranch, createBranch, mergeBranch, renameBranch,
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
   fetchCommitFiles, fetchCommitFileDiff,
-  fetchLocalStatus, fetchLocalFileDiff, commitChanges, commitAndPush
+  fetchLocalStatus, fetchLocalFileDiff, commitChanges, commitAndPush,
+  stageFiles, fetchUiState, saveUiState
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -59,6 +60,7 @@ function GitVisualizer() {
   const [localFileDiffLoading, setLocalFileDiffLoading] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [commitLoading, setCommitLoading] = useState(false);
+  const [stageLoading, setStageLoading] = useState(false);
   const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
   const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
 
@@ -75,7 +77,22 @@ function GitVisualizer() {
       } catch (_) { /* ignore */ }
       setInitialLoading(false);
     })();
+    fetchUiState().then(s => {
+      if (s.activeTab) setActiveTab(s.activeTab);
+      if (typeof s.sidebarWidth === 'number') setSidebarWidth(s.sidebarWidth);
+      if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
+    }).catch(() => {});
   }, []);
+
+  const saveUiStateDebounced = useRef(null);
+
+  const queueSaveUiState = useCallback((partial) => {
+    if (saveUiStateDebounced.current) clearTimeout(saveUiStateDebounced.current);
+    saveUiStateDebounced.current = setTimeout(() => saveUiState(partial), 300);
+  }, []);
+
+  useEffect(() => { queueSaveUiState({ activeTab }); }, [activeTab, queueSaveUiState]);
+  useEffect(() => { queueSaveUiState({ sidebarWidth }); }, [sidebarWidth, queueSaveUiState]);
 
   const handleLoadDrives = async () => {
     try {
@@ -474,6 +491,24 @@ function GitVisualizer() {
     setSelectedStagedFiles(next);
   };
 
+  const handleStageSelected = async () => {
+    const selectedFiles = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k]);
+    if (selectedFiles.length === 0) {
+      Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
+      return;
+    }
+    setStageLoading(true);
+    try {
+      await stageFiles(currentPath, selectedFiles);
+      setSelectedUnstagedFiles({});
+      await handleLoadLocalStatus();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: t('local.stageFail'), text: err.response?.data?.error || err.message });
+    } finally {
+      setStageLoading(false);
+    }
+  };
+
   const handleToggleAllUnstaged = () => {
     if (!localStatus) return;
     const allSelected = localStatus.unstaged.every(f => selectedUnstagedFiles[f.path]);
@@ -548,6 +583,7 @@ function GitVisualizer() {
   const handleSwitchLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
+    saveUiState({ lang: next }).catch(() => {});
   };
 
   const isSidebarCollapsed = sidebarWidth < 20;
@@ -877,18 +913,24 @@ function GitVisualizer() {
                           )}
                         </div>
                       </div>
-                      <div className="file-section">
-                        <div className="file-section-header">
-                          <label className="file-section-checkall">
-                            <input
-                              type="checkbox"
-                              checked={localStatus.unstaged.length > 0 && localStatus.unstaged.every(f => selectedUnstagedFiles[f.path])}
-                              onChange={handleToggleAllUnstaged}
-                            />
-                            <span className="file-section-title">{t('local.unstaged')} ({localStatus.unstaged.length})</span>
-                          </label>
-                        </div>
-                        <div className="file-section-list">
+                        <div className="file-section">
+                          <div className="file-section-header">
+                            <label className="file-section-checkall">
+                              <input
+                                type="checkbox"
+                                checked={localStatus.unstaged.length > 0 && localStatus.unstaged.every(f => selectedUnstagedFiles[f.path])}
+                                onChange={handleToggleAllUnstaged}
+                              />
+                              <span className="file-section-title">{t('local.unstaged')} ({localStatus.unstaged.length})</span>
+                            </label>
+                            {localStatus.unstaged.length > 0 && (
+                              <div className="commit-actions-wrap">
+                                {stageLoading && <div className="commit-progress-bar" />}
+                                <button className="btn btn--primary btn--stage" disabled={stageLoading} onClick={handleStageSelected}>{t('local.stage')}</button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="file-section-list">
                           {localStatus.unstaged.length === 0 ? (
                             <p className="file-section-empty">{t('local.noUnstaged')}</p>
                           ) : (

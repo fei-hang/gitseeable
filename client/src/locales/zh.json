@@ -54,7 +54,9 @@
     "commitPushFail": "提交并推送失败",
     "noMessage": "请输入提交说明",
     "emptyStatus": "没有本地修改",
-    "noFilesSelected": "请选择要提交的文件"
+    "noFilesSelected": "请选择要提交的文件",
+    "stage": "暂存",
+    "stageFail": "暂存失败"
   },
   "branch": {
     "local": "本地分支",

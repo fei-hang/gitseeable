@@ -447,6 +447,24 @@ app.post('/api/local-file-diff', async (req, res) => {
   }
 });
 
+// 暂存选中的未暂存文件
+app.post('/api/local-stage-files', async (req, res) => {
+  try {
+    const { dirPath, selectedFiles } = req.body;
+    if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '缺少参数或未选择文件' });
+    }
+    const git = getGit(dirPath);
+    for (const file of selectedFiles) {
+      await git.add(file);
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('暂存文件时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 本地提交（仅提交选中的文件）
 app.post('/api/local-commit', async (req, res) => {
   try {
@@ -495,7 +513,7 @@ app.post('/api/local-commit-push', async (req, res) => {
   }
 });
 
-const DATA_FILE = path.join(__dirname, 'opencode.json');
+const DATA_FILE = path.join(__dirname, 'state.json');
 
 // 保存上次检查的路径
 app.post('/api/save-last-path', (req, res) => {
@@ -521,6 +539,35 @@ app.get('/api/last-path', (req, res) => {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     } catch (_) { /* ignore */ }
     res.json({ lastPath: data.lastPath || null });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 保存 UI 状态（刷新保持）
+const UI_DEFAULTS = { activeTab: 'commits', sidebarWidth: 260, lang: 'zh' };
+
+app.get('/api/ui-state', (req, res) => {
+  try {
+    let data = {};
+    try {
+      data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    } catch (_) { /* ignore */ }
+    res.json({ ...UI_DEFAULTS, ...data.uiState });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ui-state', (req, res) => {
+  try {
+    let data = {};
+    try {
+      data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    } catch (_) { /* ignore */ }
+    data.uiState = { ...UI_DEFAULTS, ...data.uiState, ...req.body };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
