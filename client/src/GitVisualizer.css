@@ -1323,9 +1323,7 @@
   display: flex;
   align-items: center;
   line-height: 20px;
-  white-space: nowrap;
   padding: 0 2px;
-  min-width: 24px;
   letter-spacing: 0;
 }
 
@@ -1335,92 +1333,12 @@
   line-height: 20px;
 }
 
-.graph-char {
-  display: inline-block;
-  width: 12px;
-  height: 100%;
-  min-height: 20px;
-  position: relative;
-  vertical-align: top;
+/* ========== SVG Commit Graph ========== */
+
+.graph-svg {
+  display: block;
   flex-shrink: 0;
-}
-
-.graph-char--space {
-  /* empty cell, spacing only */
-}
-
-/* ---------- Vertical Line (|) ---------- */
-.graph-char--line-v::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2.5px;
-  background: var(--gc);
-  transform: translateX(-50%);
-  border-radius: 1.5px;
-}
-
-/* ---------- Node (●) — line behind + dot on top ---------- */
-.graph-char--node::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2.5px;
-  background: var(--gc);
-  transform: translateX(-50%);
-  border-radius: 1.5px;
-}
-.graph-char--node::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  background: var(--gc);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  box-shadow: 0 0 0 2px var(--background);
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-
-/* ---------- Diagonal right (/) ---------- */
-.graph-char--line-dr {
-  overflow: hidden;
-}
-.graph-char--line-dr::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 2.5px;
-  height: 141%;
-  background: var(--gc);
-  border-radius: 1.5px;
-  transform: translate(-50%, -50%) rotate(45deg);
-  transform-origin: center;
-}
-
-/* ---------- Diagonal left (\) ---------- */
-.graph-char--line-dl {
-  overflow: hidden;
-}
-.graph-char--line-dl::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 2.5px;
-  height: 141%;
-  background: var(--gc);
-  border-radius: 1.5px;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  transform-origin: center;
+  overflow: visible;
 }
 
 @media (max-width: 768px) {

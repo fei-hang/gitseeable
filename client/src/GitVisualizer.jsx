@@ -698,17 +698,49 @@ function GitVisualizer() {
 
   const LANE_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
+  const CELL_W = 14;
+  const ROW_H = 20;
+
   const renderGraph = (graphStr) => {
     if (!graphStr) return null;
-    return [...graphStr].map((ch, i) => {
+    const w = graphStr.length * CELL_W;
+    const halfRow = ROW_H / 2;
+
+    const els = [];
+    for (let i = 0; i < graphStr.length; i++) {
+      const ch = graphStr[i];
+      const cx = i * CELL_W + CELL_W / 2;
       const color = LANE_COLORS[i % LANE_COLORS.length];
-      if (ch === ' ') return <span key={i} className="graph-char graph-char--space" />;
-      if (ch === '*') return <span key={i} className="graph-char graph-char--node" style={{ '--gc': color }} />;
-      if (ch === '|') return <span key={i} className="graph-char graph-char--line-v" style={{ '--gc': color }} />;
-      if (ch === '/') return <span key={i} className="graph-char graph-char--line-dr" style={{ '--gc': color }} />;
-      if (ch === '\\') return <span key={i} className="graph-char graph-char--line-dl" style={{ '--gc': color }} />;
-      return <span key={i} className="graph-char" />;
-    });
+
+      if (ch === ' ') continue;
+
+      if (ch === '|') {
+        els.push(<line key={`${i}-v`} x1={cx} y1={0} x2={cx} y2={ROW_H}
+          stroke={color} strokeWidth={2} strokeLinecap="round" />);
+      } else if (ch === '*') {
+        els.push(<line key={`${i}-vl`} x1={cx} y1={0} x2={cx} y2={ROW_H}
+          stroke={color} strokeWidth={2} strokeLinecap="round" opacity={0.55} />);
+        els.push(<circle key={`${i}-nd`} cx={cx} cy={halfRow} r={4}
+          fill={color} stroke="var(--background)" strokeWidth={2.5} />);
+        els.push(<circle key={`${i}-gl`} cx={cx} cy={halfRow} r={4.5}
+          fill="none" stroke="var(--background)" strokeWidth={1} opacity={0.3} />);
+      } else if (ch === '\\') {
+        const x2 = (i + 1) * CELL_W + CELL_W / 2;
+        els.push(<path key={i} d={`M ${cx} 0 C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H}`}
+          stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
+      } else if (ch === '/') {
+        const x2 = (i - 1) * CELL_W + CELL_W / 2;
+        els.push(<path key={i} d={`M ${cx} 0 C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H}`}
+          stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
+      }
+    }
+
+    return (
+      <svg className="graph-svg" width={w} height={ROW_H}
+        viewBox={`-3 -3 ${w + 6} ${ROW_H + 6}`}>
+        {els}
+      </svg>
+    );
   };
 
   const isSidebarCollapsed = sidebarWidth < 20;
