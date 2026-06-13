@@ -500,7 +500,22 @@ app.post('/api/conflict-file-content', async (req, res) => {
     let ours = '', theirs = '';
     try { ours = await git.raw(['show', ':2:' + filePath]); } catch (_) { ours = ''; }
     try { theirs = await git.raw(['show', ':3:' + filePath]); } catch (_) { theirs = ''; }
-    res.json({ ours, theirs });
+    // 获取 hunk 信息（差异块的行号范围）
+    const hunks = [];
+    try {
+      const diff = await git.raw(['diff', '--unified=0', `:2:${filePath}`, `:3:${filePath}`]);
+      const hunkRegex = /@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/g;
+      let m;
+      while ((m = hunkRegex.exec(diff)) !== null) {
+        hunks.push({
+          ourStart: parseInt(m[1]),
+          ourCount: parseInt(m[2]) || 1,
+          theirStart: parseInt(m[3]),
+          theirCount: parseInt(m[4]) || 1,
+        });
+      }
+    } catch (_) {}
+    res.json({ ours, theirs, hunks });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
