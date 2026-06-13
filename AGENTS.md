@@ -104,6 +104,7 @@ All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `P
 - **Express 5**: API differs from Express 4 (`req.query`, error handling).
 - **Vite proxy**: `client/vite.config.js` proxies `/api` → `localhost:3001`. `API_BASE_URL` is `""` (empty string).
 - **Module systems**: `client/` is ESM (type: "module"), `server/` is CommonJS (`require`).
+- **Port polling, not `Start-Sleep`**: To wait for server startup, poll the port instead of sleeping — `Start-Sleep` produces no output and causes the agent to appear frozen. Use `Test-NetConnection -ComputerName localhost -Port 3001 -WarningAction SilentlyContinue` or try `Invoke-WebRequest http://localhost:3001/api/drives -ErrorAction SilentlyContinue` in a loop with a short sleep (≤500ms).
 
 ## OpenCode skills
 
