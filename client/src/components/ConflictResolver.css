@@ -164,6 +164,10 @@
   position: relative;
 }
 
+.conflict-diff-rows {
+  min-width: 100%;
+}
+
 .conflict-diff-row {
   display: flex;
   position: relative;
@@ -175,7 +179,6 @@
   padding: 0 4px;
   display: flex;
   align-items: stretch;
-  min-height: 18px;
 }
 
 .conflict-diff-cell:first-child {
@@ -185,7 +188,21 @@
   border-right: 1px solid var(--border-light);
 }
 
+.diff-line-num {
+  display: inline-block;
+  width: 36px;
+  min-width: 36px;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
 .diff-line-content {
+  flex: 1;
   white-space: pre-wrap;
   word-break: break-all;
+  color: var(--text-primary);
 }

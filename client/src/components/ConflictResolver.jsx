@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { fetchConflictFileContent, abortMerge } from '../api';
 import './ConflictResolver.css';
 
-const ROW_HEIGHT = 20;
-
 export default function ConflictResolver({ currentPath, conflictFiles, conflictType, onAbort, onRefresh }) {
   const { t } = useTranslation();
   const [selectedFile, setSelectedFile] = useState(null);
@@ -110,7 +108,7 @@ export default function ConflictResolver({ currentPath, conflictFiles, conflictT
               </div>
               <div className="conflict-diff-body" style={{ '--left-pct': `${oursSplitPct * 100}%` }}>
                 <div className="diff-handle" onMouseDown={handleSplitMouseDown} />
-                <div style={{ height: maxLines * ROW_HEIGHT }}>
+                <div className="conflict-diff-rows">
                   {Array.from({ length: maxLines }).map((_, i) => (
                     <div key={i} className="conflict-diff-row">
                       <div className="conflict-diff-cell">
