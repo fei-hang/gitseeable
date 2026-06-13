@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import Swal from 'sweetalert2';
@@ -759,6 +759,40 @@ function GitVisualizer() {
   const [diffSplitPct, setDiffSplitPct] = useState(0.5);
   const diffDragging = useRef(false);
   const diffBodyRef = useRef(null);
+  const ROW_HEIGHT = 20;
+  const SCROLL_BUFFER = 20;
+  const [diffScrollTop, setDiffScrollTop] = useState(0);
+  const [diffContainerHeight, setDiffContainerHeight] = useState(600);
+  const diffVirtualRef = useRef(null);
+
+  const handleDiffScroll = useCallback(() => {
+    if (diffVirtualRef.current) {
+      setDiffScrollTop(diffVirtualRef.current.scrollTop);
+    }
+  }, []);
+
+  const diffVirtualRows = useMemo(() => {
+    const total = localFileDiff.length;
+    const startIdx = Math.max(0, Math.floor(diffScrollTop / ROW_HEIGHT) - SCROLL_BUFFER);
+    const endIdx = Math.min(total, Math.ceil((diffScrollTop + diffContainerHeight) / ROW_HEIGHT) + SCROLL_BUFFER);
+    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: localFileDiff.slice(startIdx, endIdx) };
+  }, [localFileDiff, diffScrollTop, diffContainerHeight]);
+
+  useEffect(() => {
+    setDiffScrollTop(0);
+    if (diffVirtualRef.current) diffVirtualRef.current.scrollTop = 0;
+  }, [selectedLocalFile]);
+
+  useEffect(() => {
+    const el = diffVirtualRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setDiffContainerHeight(entry.contentRect.height);
+    });
+    ro.observe(el);
+    setDiffContainerHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
 
   const handleDiffMouseDown = (e) => {
     diffDragging.current = true;
@@ -1164,28 +1198,32 @@ function GitVisualizer() {
                           <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>
                         </div>
-                        <div className="side-by-side-body" ref={diffBodyRef} style={{ '--left-pct': `${diffSplitPct * 100}%` }}>
+                        <div className="side-by-side-body" ref={(el) => { diffBodyRef.current = el; diffVirtualRef.current = el; }} style={{ '--left-pct': `${diffSplitPct * 100}%` }} onScroll={handleDiffScroll}>
                           <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
-                          {localFileDiff.map((row, i) => (
-                            <div key={i} className="diff-row">
-                              {row.oldContent !== null ? (
-                                <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
-                                  <span className="diff-line-num">{row.oldLine}</span>
-                                  <span className="diff-line-content">{row.oldContent}</span>
+                          <div style={{ height: diffVirtualRows.total * ROW_HEIGHT, position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
+                              {diffVirtualRows.visible.map((row, i) => (
+                                <div key={diffVirtualRows.startIdx + i} className="diff-row">
+                                  {row.oldContent !== null ? (
+                                    <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
+                                      <span className="diff-line-num">{row.oldLine}</span>
+                                      <span className="diff-line-content">{row.oldContent}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="diff-cell" />
+                                  )}
+                                  {row.newContent !== null ? (
+                                    <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
+                                      <span className="diff-line-num">{row.newLine}</span>
+                                      <span className="diff-line-content">{row.newContent}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="diff-cell" />
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="diff-cell" />
-                              )}
-                              {row.newContent !== null ? (
-                                <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
-                                  <span className="diff-line-num">{row.newLine}</span>
-                                  <span className="diff-line-content">{row.newContent}</span>
-                                </div>
-                              ) : (
-                                <div className="diff-cell" />
-                              )}
+                              ))}
                             </div>
-                          ))}
+                          </div>
                         </div>
                       </div>
                     </div>
