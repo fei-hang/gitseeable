@@ -163,10 +163,10 @@ function GitVisualizer() {
 
   const handleCheckGit = () => handleDoCheckGit(currentPath);
 
-  const handleLoadCommits = async (branch, page = 1) => {
+  const handleLoadCommits = async (branch, page = 1, pageSize = commitPageSize) => {
     try {
       setCommitsLoading(true);
-      const data = await fetchCommits(currentPath, branch, page, commitPageSize);
+      const data = await fetchCommits(currentPath, branch, page, pageSize);
       setCommits(data.commits);
       setCommitsTotal(data.totalCount);
       setCommitPage(page);
@@ -201,7 +201,7 @@ function GitVisualizer() {
   const handlePageSizeChange = (e) => {
     const v = parseInt(e.target.value, 10);
     setCommitPageSize(v);
-    handleLoadCommits(selectedBranch, 1);
+    handleLoadCommits(selectedBranch, 1, v);
   };
 
   const handleBranchSelect = (branch) => {
@@ -949,10 +949,11 @@ function GitVisualizer() {
                 <div className="commit-pagination">
                   <div className="commit-pagination-left">
                     <select className="commit-page-size" value={commitPageSize} onChange={handlePageSizeChange}>
+                      <option value={10}>10</option>
                       <option value={20}>20</option>
                       <option value={50}>50</option>
                       <option value={100}>100</option>
-                      <option value={0}>{t('commit.all')}</option>
+                      <option value={200}>200</option>
                     </select>
                     <span className="commit-page-size-label">{t('commit.pageSize')}</span>
                   </div>
