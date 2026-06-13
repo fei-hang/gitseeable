@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchConflictFileContent, abortMerge } from '../api';
 import './ConflictResolver.css';
@@ -10,20 +10,28 @@ export default function ConflictResolver({ currentPath, conflictFiles, conflictT
   const [theirs, setTheirs] = useState('');
   const [loading, setLoading] = useState(false);
   const [aborting, setAborting] = useState(false);
-
-  const [oursSplitPct, setOursSplitPct] = useState(0.5);
-  const splitDragging = useRef(false);
+  const [conflictLines, setConflictLines] = useState(new Set());
 
   const handleSelectFile = useCallback(async (file) => {
     setSelectedFile(file);
     setLoading(true);
     try {
       const data = await fetchConflictFileContent(currentPath, file);
-      setOurs(data.ours || '');
-      setTheirs(data.theirs || '');
+      const o = data.ours || '';
+      const t2 = data.theirs || '';
+      setOurs(o);
+      setTheirs(t2);
+      const oLines = o.split('\n');
+      const tLines = t2.split('\n');
+      const diff = new Set();
+      for (let i = 0; i < Math.max(oLines.length, tLines.length); i++) {
+        if (oLines[i] !== tLines[i]) diff.add(i);
+      }
+      setConflictLines(diff);
     } catch (_) {
       setOurs('');
       setTheirs('');
+      setConflictLines(new Set());
     } finally {
       setLoading(false);
     }
@@ -38,21 +46,6 @@ export default function ConflictResolver({ currentPath, conflictFiles, conflictT
       setAborting(false);
     }
   };
-
-  const handleSplitMouseDown = useCallback((e) => {
-    e.preventDefault();
-    splitDragging.current = true;
-    const body = e.currentTarget.parentElement;
-    const onMove = (ev) => {
-      if (!splitDragging.current) return;
-      const rect = body.getBoundingClientRect();
-      const pct = Math.max(0.15, Math.min(0.85, (ev.clientX - rect.left) / rect.width));
-      setOursSplitPct(pct);
-    };
-    const onUp = () => { splitDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, []);
 
   useEffect(() => {
     if (conflictFiles && conflictFiles.length > 0) {
@@ -101,26 +94,28 @@ export default function ConflictResolver({ currentPath, conflictFiles, conflictT
           ) : loading ? (
             <div className="conflict-diff-loading">{t('common.loading')}</div>
           ) : (
-            <div className="conflict-diff-view">
+              <div className="conflict-diff-view">
               <div className="conflict-diff-header">
-                <div className="conflict-diff-label" style={{ width: `${oursSplitPct * 100}%`, flex: 'none' }}>{t('conflict.ours')}</div>
+                <div className="conflict-diff-label">{t('conflict.ours')}</div>
                 <div className="conflict-diff-label">{t('conflict.theirs')}</div>
               </div>
-              <div className="conflict-diff-body" style={{ '--left-pct': `${oursSplitPct * 100}%` }}>
-                <div className="diff-handle" onMouseDown={handleSplitMouseDown} />
+              <div className="conflict-diff-body">
                 <div className="conflict-diff-rows">
-                  {Array.from({ length: maxLines }).map((_, i) => (
-                    <div key={i} className="conflict-diff-row">
-                      <div className="conflict-diff-cell">
-                        <span className="diff-line-num">{i + 1}</span>
-                        <span className="diff-line-content">{oursLines[i] || ''}</span>
+                  {Array.from({ length: maxLines }).map((_, i) => {
+                    const isConflict = conflictLines.has(i);
+                    return (
+                      <div key={i} className={`conflict-diff-row${isConflict ? ' conflict-diff-row--diff' : ''}`}>
+                        <div className="conflict-diff-cell">
+                          <span className="diff-line-num">{i + 1}</span>
+                          <span className="diff-line-content">{oursLines[i] || ''}</span>
+                        </div>
+                        <div className="conflict-diff-cell">
+                          <span className="diff-line-num">{i + 1}</span>
+                          <span className="diff-line-content">{theirsLines[i] || ''}</span>
+                        </div>
                       </div>
-                      <div className="conflict-diff-cell">
-                        <span className="diff-line-num">{i + 1}</span>
-                        <span className="diff-line-content">{theirsLines[i] || ''}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

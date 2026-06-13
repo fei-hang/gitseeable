@@ -182,10 +182,19 @@
 }
 
 .conflict-diff-cell:first-child {
-  width: var(--left-pct, 50%);
-  flex: none;
-  min-width: 200px;
   border-right: 1px solid var(--border-light);
+}
+
+.conflict-diff-row--diff {
+  background: var(--danger-light);
+}
+
+.conflict-diff-row--diff:hover {
+  background: var(--danger);
+}
+
+.conflict-diff-row--diff .diff-line-content {
+  color: var(--danger);
 }
 
 .conflict-diff-cell .diff-line-num {
