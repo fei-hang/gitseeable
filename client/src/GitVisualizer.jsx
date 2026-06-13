@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import Swal from 'sweetalert2';
+import { API_BASE_URL } from './constants';
 import {
   fetchDrives, fetchDirectories, checkGit,
   fetchCommitGraph,
@@ -983,6 +984,25 @@ function GitVisualizer() {
       })();
     }
   }, [view, currentPath, gitInfo]);
+
+  const loadLocalRef = useRef(handleLoadLocalStatus);
+  loadLocalRef.current = handleLoadLocalStatus;
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
+    if (view !== 'analyze' || !currentPath) return;
+    const es = new EventSource(`${API_BASE_URL}/api/file-events?dirPath=${encodeURIComponent(currentPath)}`);
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'file-change' && activeTabRef.current === 'local') {
+          loadLocalRef.current();
+        }
+      } catch (_) {}
+    };
+    return () => { es.close(); };
+  }, [view, currentPath]);
 
   if (initialLoading) {
     return <div className="git-visualizer"><p className="initial-loading">{t('common.restoring')}</p></div>;

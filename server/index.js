@@ -877,6 +877,62 @@ app.post('/api/ui-state', (req, res) => {
   }
 });
 
+// SSE: 文件变更事件推送
+const fileEventWatchers = {};
+
+app.get('/api/file-events', (req, res) => {
+  const dirPath = req.query.dirPath;
+  if (!dirPath) return res.status(400).end();
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  req.socket.setTimeout(0);
+  req.socket.setNoDelay(true);
+
+  if (!fileEventWatchers[dirPath]) {
+    fileEventWatchers[dirPath] = { watcher: null, connections: new Set(), timer: null };
+    try {
+      const watcher = fs.watch(dirPath, { recursive: true });
+      watcher.on('change', (eventType, filename) => {
+        const relPath = filename ? filename.replace(/\\/g, '/') : '';
+        if (relPath.startsWith('.git')) return;
+        clearTimeout(fileEventWatchers[dirPath].timer);
+        fileEventWatchers[dirPath].timer = setTimeout(() => {
+          const msg = JSON.stringify({ type: 'file-change' });
+          for (const conn of fileEventWatchers[dirPath].connections) {
+            conn.write(`data: ${msg}\n\n`);
+          }
+        }, 1000);
+      });
+      fileEventWatchers[dirPath].watcher = watcher;
+    } catch (_) {
+      delete fileEventWatchers[dirPath];
+    }
+  }
+
+  if (fileEventWatchers[dirPath]) {
+    fileEventWatchers[dirPath].connections.add(res);
+  }
+
+  const keepAlive = setInterval(() => {
+    res.write(':keepalive\n\n');
+  }, 30000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    if (fileEventWatchers[dirPath]) {
+      fileEventWatchers[dirPath].connections.delete(res);
+      if (fileEventWatchers[dirPath].connections.size === 0) {
+        try { fileEventWatchers[dirPath].watcher.close(); } catch (_) {}
+        delete fileEventWatchers[dirPath];
+      }
+    }
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`服务器启动成功`);
 });
