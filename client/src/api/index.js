@@ -117,6 +117,10 @@ export function stageFiles(dirPath, selectedFiles) {
   return axios.post(`${API_BASE_URL}/api/local-stage-files`, { dirPath, selectedFiles }).then(res => res.data);
 }
 
+export function unstageFiles(dirPath, selectedFiles) {
+  return axios.post(`${API_BASE_URL}/api/local-unstage-files`, { dirPath, selectedFiles }).then(res => res.data);
+}
+
 export function commitChanges(dirPath, message, selectedFiles) {
   return axios.post(`${API_BASE_URL}/api/local-commit`, { dirPath, message, selectedFiles }).then(res => res.data);
 }

@@ -11,6 +11,7 @@ import {
   fetchCommitFiles, fetchCommitFileDiff,
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
   stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
+  unstageFiles,
   fetchConflictFiles, fetchConflictFileContent, abortMerge, continueMerge
 } from './api';
 import BranchList from './components/BranchList';
@@ -64,6 +65,7 @@ function GitVisualizer() {
   const [commitMessage, setCommitMessage] = useState('');
   const [commitLoading, setCommitLoading] = useState(false);
   const [stageLoading, setStageLoading] = useState(false);
+  const [unstageLoading, setUnstageLoading] = useState(false);
   const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
   const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
   const [theme, setTheme] = useState('light');
@@ -654,6 +656,38 @@ function GitVisualizer() {
     }
   };
 
+  const handleUnstageSelected = async () => {
+    const selectedPaths = Object.keys(selectedStagedFiles).filter(k => selectedStagedFiles[k]);
+    if (selectedPaths.length === 0) {
+      Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
+      return;
+    }
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: t('local.unstage'),
+      text: t('local.unstageConfirm', { count: selectedPaths.length }),
+      showCancelButton: true,
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    });
+    if (!result.isConfirmed) return;
+    setUnstageLoading(true);
+    try {
+      await unstageFiles(currentPath, selectedPaths);
+      setSelectedStagedFiles({});
+      if (selectedLocalFile && selectedLocalFileType === 'staged') {
+        setSelectedLocalFile(null);
+        setSelectedLocalFileType(null);
+        setLocalFileDiff([]);
+      }
+      await handleLoadLocalStatus();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: t('local.unstageFail'), text: err.response?.data?.error || err.message });
+    } finally {
+      setUnstageLoading(false);
+    }
+  };
+
   const handleToggleAllUnstaged = () => {
     if (!localStatus) return;
     const allSelected = localStatus.unstaged.every(f => selectedUnstagedFiles[f.path]);
@@ -1186,7 +1220,7 @@ function GitVisualizer() {
                   ) : (
                     <div className="local-files">
                       <div className="file-section">
-                        <div className="file-section-header">
+                          <div className="file-section-header">
                           <label className="file-section-checkall">
                             <input
                               type="checkbox"
@@ -1195,6 +1229,12 @@ function GitVisualizer() {
                             />
                             <span className="file-section-title">{t('local.staged')} ({localStatus.staged.length})</span>
                           </label>
+                          {localStatus.staged.length > 0 && (
+                            <div className="commit-actions-wrap">
+                              {unstageLoading && <div className="commit-progress-bar" />}
+                              <button className="btn btn--danger btn--stage" disabled={unstageLoading} onClick={handleUnstageSelected}>{t('local.unstage')}</button>
+                            </div>
+                          )}
                         </div>
                         <div className="file-section-list">
                           {localStatus.staged.length === 0 ? (

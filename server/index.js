@@ -736,11 +736,29 @@ app.post('/api/local-stage-files', async (req, res) => {
     }
     const git = getGit(dirPath);
     for (const file of selectedFiles) {
-      await git.add(file);
+      await git.raw(['add', file]);
     }
     res.json({ ok: true });
   } catch (error) {
     console.error('暂存文件时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 取消暂存选中的已暂存文件
+app.post('/api/local-unstage-files', async (req, res) => {
+  try {
+    const { dirPath, selectedFiles } = req.body;
+    if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '缺少参数或未选择文件' });
+    }
+    const git = getGit(dirPath);
+    for (const file of selectedFiles) {
+      await git.raw(['restore', '--staged', file]);
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('取消暂存时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
