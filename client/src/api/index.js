@@ -85,6 +85,10 @@ export function abortMerge(dirPath) {
   return axios.post(`${API_BASE_URL}/api/abort-merge`, { dirPath }).then(res => res.data);
 }
 
+export function resolveConflictFile(dirPath, filePath, content) {
+  return axios.post(`${API_BASE_URL}/api/resolve-conflict-file`, { dirPath, filePath, content }).then(res => res.data);
+}
+
 export function saveLastPath(dirPath) {
   return axios.post(`${API_BASE_URL}/api/save-last-path`, { dirPath });
 }

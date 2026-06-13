@@ -161,7 +161,10 @@
     "selectFile": "请选择一个冲突文件",
     "ours": "当前分支",
     "theirs": "合并目标分支",
-    "abortSuccess": "已取消合并/变基"
+    "abortSuccess": "已取消合并/变基",
+    "resolve": "解决冲突",
+    "resolveSuccess": "冲突已解决",
+    "allResolved": "所有冲突已解决"
   },
   "error": {
     "loadDrives": "加载盘符失败: {{msg}}",

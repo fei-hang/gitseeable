@@ -511,6 +511,23 @@ app.post('/api/abort-merge', async (req, res) => {
   }
 });
 
+// 解决冲突文件（写入内容并 git add）
+app.post('/api/resolve-conflict-file', async (req, res) => {
+  try {
+    const { dirPath, filePath, content } = req.body;
+    if (!dirPath || !filePath || content === undefined) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const fullPath = path.join(dirPath, filePath);
+    await fs.promises.writeFile(fullPath, content, 'utf-8');
+    await git.raw(['add', filePath]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 获取单个commit的diff
 app.post('/api/commit-diff', async (req, res) => {
   try {

@@ -244,6 +244,24 @@ function GitVisualizer() {
     await handleLoadGraph();
   };
 
+  const handleConflictResolved = async () => {
+    try {
+      const { files, type } = await fetchConflictFiles(currentPath);
+      if (files && files.length > 0) {
+        setConflictFiles(files);
+        setConflictType(type || 'merge');
+      } else {
+        setConflictFiles(null);
+        setConflictType(null);
+        setConflictTheirsBranch(null);
+        setActiveTab('commits');
+        const data = await handleRefreshGitInfo();
+        setSelectedBranch(data.currentBranch);
+        await handleLoadGraph();
+      }
+    } catch (_) {}
+  };
+
   const handleRefreshGitInfo = async () => {
     const data = await checkGit(currentPath);
     setGitInfo(data);
@@ -1305,6 +1323,7 @@ function GitVisualizer() {
                 theirsBranch={conflictTheirsBranch}
                 onAbort={handleAbortConflict}
                 onRefresh={handleRefreshGitInfo}
+                onFileResolved={handleConflictResolved}
               />
             )}
           </div>

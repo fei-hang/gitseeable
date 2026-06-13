@@ -161,7 +161,10 @@
     "selectFile": "Select a conflicted file",
     "ours": "Current Branch",
     "theirs": "Incoming Branch",
-    "abortSuccess": "Merge/Rebase aborted"
+    "abortSuccess": "Merge/Rebase aborted",
+    "resolve": "Resolve",
+    "resolveSuccess": "Conflict resolved",
+    "allResolved": "All conflicts resolved"
   },
   "error": {
     "loadDrives": "Failed to load drives: {{msg}}",
