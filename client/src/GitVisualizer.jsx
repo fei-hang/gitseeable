@@ -29,7 +29,7 @@ function GitVisualizer() {
   const [commits, setCommits] = useState([]);
   const [commitsTotal, setCommitsTotal] = useState(0);
   const [commitPage, setCommitPage] = useState(1);
-  const [commitPageSize] = useState(50);
+  const [commitPageSize, setCommitPageSize] = useState(50);
   const [commitsLoading, setCommitsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -178,7 +178,7 @@ function GitVisualizer() {
     }
   };
 
-  const totalCommitPages = Math.ceil(commitsTotal / commitPageSize) || 1;
+  const totalCommitPages = commitPageSize > 0 ? Math.ceil(commitsTotal / commitPageSize) || 1 : 1;
 
   const handlePrevPage = () => {
     if (commitPage > 1) handleLoadCommits(selectedBranch, commitPage - 1);
@@ -186,6 +186,22 @@ function GitVisualizer() {
 
   const handleNextPage = () => {
     if (commitPage < totalCommitPages) handleLoadCommits(selectedBranch, commitPage + 1);
+  };
+
+  const [commitPageInput, setCommitPageInput] = useState('');
+
+  const handleGoToPage = () => {
+    const p = parseInt(commitPageInput, 10);
+    if (p >= 1 && p <= totalCommitPages) {
+      handleLoadCommits(selectedBranch, p);
+      setCommitPageInput('');
+    }
+  };
+
+  const handlePageSizeChange = (e) => {
+    const v = parseInt(e.target.value, 10);
+    setCommitPageSize(v);
+    handleLoadCommits(selectedBranch, 1);
   };
 
   const handleBranchSelect = (branch) => {
@@ -869,7 +885,7 @@ function GitVisualizer() {
           <div className="sidebar-resize-handle" onMouseDown={handleSidebarMouseDown} />
           <div className="analyze-main">
             {activeTab === 'commits' && (
-              <>
+              <div className="commit-pagination-box">
                 <div className="commit-header">
                   {selectedBranch && <span className="commit-header-label">{selectedBranch}</span>}
                   <span className="commit-header-count">{t('commit.count', { count: commitsTotal })}</span>
@@ -930,14 +946,35 @@ function GitVisualizer() {
                     ))
                   )}
                 </div>
-                {!commitsLoading && commits.length > 0 && totalCommitPages > 1 && (
-                  <div className="commit-pagination">
+                <div className="commit-pagination">
+                  <div className="commit-pagination-left">
+                    <select className="commit-page-size" value={commitPageSize} onChange={handlePageSizeChange}>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={0}>{t('commit.all')}</option>
+                    </select>
+                    <span className="commit-page-size-label">{t('commit.pageSize')}</span>
+                  </div>
+                  <div className="commit-pagination-center">
                     <button className="btn btn--small" disabled={commitPage <= 1} onClick={handlePrevPage}>{t('commit.prevPage')}</button>
                     <span className="commit-pagination-info">{commitPage} / {totalCommitPages}</span>
                     <button className="btn btn--small" disabled={commitPage >= totalCommitPages} onClick={handleNextPage}>{t('commit.nextPage')}</button>
                   </div>
-                )}
-              </>
+                  <div className="commit-pagination-right">
+                    <input
+                      className="commit-go-to-input"
+                      type="number"
+                      min={1}
+                      max={totalCommitPages}
+                      value={commitPageInput}
+                      onChange={(e) => setCommitPageInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGoToPage()}
+                    />
+                    <button className="btn btn--small" onClick={handleGoToPage}>{t('commit.goToPage')}</button>
+                  </div>
+                </div>
+              </div>
             )}
             {activeTab === 'compare' && compareData && (
               <div className="compare-view">

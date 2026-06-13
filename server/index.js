@@ -165,8 +165,11 @@ app.post('/api/commits', async (req, res) => {
     }
     const git = getGit(dirPath);
     const skip = (page - 1) * pageSize;
+    const logArgs = pageSize > 0
+      ? ['log', branch, `--skip=${skip}`, `--max-count=${pageSize}`, '--format=%H||%an||%ae||%ai||%s']
+      : ['log', branch, '--format=%H||%an||%ae||%ai||%s'];
     const [raw, totalRaw] = await Promise.all([
-      git.raw(['log', branch, `--skip=${skip}`, `--max-count=${pageSize}`, '--format=%H||%an||%ae||%ai||%s']),
+      git.raw(logArgs),
       git.raw(['rev-list', '--count', branch])
     ]);
     const commits = raw.trim().split('\n').filter(Boolean).map(line => {

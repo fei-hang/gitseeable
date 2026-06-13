@@ -338,9 +338,19 @@
 
 .analyze-main {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: var(--space-5) var(--space-6);
   background: var(--background-alt);
+}
+
+.commit-pagination-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .commit-header {
@@ -350,6 +360,7 @@
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .commit-header-label {
@@ -369,6 +380,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .commit-item {
@@ -543,9 +557,29 @@
 .commit-pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4) 0 var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.commit-pagination-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.commit-pagination-center {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.commit-pagination-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .commit-pagination-info {
@@ -556,10 +590,46 @@
   font-weight: 500;
 }
 
+.commit-page-size {
+  width: 64px;
+  padding: 4px 6px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.commit-page-size-label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.commit-go-to-input {
+  width: 56px;
+  padding: 4px 6px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.commit-go-to-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .compare-view {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .compare-sections {
@@ -776,7 +846,8 @@
 
 .local-view {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   gap: 0;
 }
 
