@@ -188,7 +188,7 @@
   border-right: 1px solid var(--border-light);
 }
 
-.diff-line-num {
+.conflict-diff-cell .diff-line-num {
   display: inline-block;
   width: 36px;
   min-width: 36px;
@@ -200,9 +200,10 @@
   flex-shrink: 0;
 }
 
-.diff-line-content {
+.conflict-diff-cell .diff-line-content {
   flex: 1;
   white-space: pre-wrap;
   word-break: break-all;
+  overflow-wrap: break-word;
   color: var(--text-primary);
 }
