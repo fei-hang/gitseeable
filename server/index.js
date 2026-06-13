@@ -550,9 +550,9 @@ app.post('/api/continue-merge', async (req, res) => {
     let isMerge = false;
     try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); isMerge = true; } catch (_) {}
     if (isMerge) {
-      await git.raw(['-c', 'core.editor=true', 'merge', '--continue']);
+      await git.raw(['commit', '--no-edit']);
     } else {
-      await git.raw(['-c', 'core.editor=true', 'rebase', '--continue']);
+      await git.env('GIT_EDITOR', 'true').env('GIT_SEQUENCE_EDITOR', 'true').raw(['rebase', '--continue']);
     }
     res.json({ ok: true });
   } catch (error) {
