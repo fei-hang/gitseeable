@@ -429,7 +429,7 @@ function GitVisualizer() {
   const handleRebaseBranch = async (targetBranch) => {
     const { isConfirmed } = await Swal.fire({
       title: i18n.t('dialog.rebase.title'),
-      text: i18n.t('dialog.rebase.text', { target: targetBranch }),
+      text: i18n.t('dialog.rebase.text', { current: gitInfo.currentBranch, target: targetBranch }),
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: t('common.confirm'),
@@ -459,7 +459,7 @@ function GitVisualizer() {
 
     if (!isCurrent) {
       actions.push({ label: t('context.merge', { branch, current: gitInfo.currentBranch }), onClick: () => handleMergeBranch(branch) });
-      actions.push({ label: t('context.rebase', { branch }), onClick: () => handleRebaseBranch(branch) });
+      actions.push({ label: t('context.rebase', { current: gitInfo.currentBranch, branch }), onClick: () => handleRebaseBranch(branch) });
     }
 
     actions.push({ label: t('context.compare', { branch, current: gitInfo.currentBranch }), onClick: () => handleCompareBranches(branch) });
