@@ -696,53 +696,7 @@ function GitVisualizer() {
     setTheme(next);
   };
 
-  const LANE_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
-  const CELL_W = 14;
-  const ROW_H = 20;
-  const OVERLAP = 3;
-
-  const renderGraph = (graphStr) => {
-    if (!graphStr) return null;
-    const w = graphStr.length * CELL_W;
-    const halfRow = ROW_H / 2;
-
-    const els = [];
-    for (let i = 0; i < graphStr.length; i++) {
-      const ch = graphStr[i];
-      const cx = i * CELL_W + CELL_W / 2;
-      const color = LANE_COLORS[i % LANE_COLORS.length];
-
-      if (ch === ' ') continue;
-
-      if (ch === '|') {
-        els.push(<line key={`${i}-v`} x1={cx} y1={-OVERLAP} x2={cx} y2={ROW_H + OVERLAP}
-          stroke={color} strokeWidth={2} strokeLinecap="round" />);
-      } else if (ch === '*') {
-        els.push(<line key={`${i}-vl`} x1={cx} y1={-OVERLAP} x2={cx} y2={ROW_H + OVERLAP}
-          stroke={color} strokeWidth={2} strokeLinecap="round" opacity={0.55} />);
-        els.push(<circle key={`${i}-nd`} cx={cx} cy={halfRow} r={4}
-          fill={color} stroke="var(--background)" strokeWidth={2.5} />);
-        els.push(<circle key={`${i}-gl`} cx={cx} cy={halfRow} r={4.5}
-          fill="none" stroke="var(--background)" strokeWidth={1} opacity={0.3} />);
-      } else if (ch === '\\') {
-        const x2 = (i + 1) * CELL_W + CELL_W / 2;
-        els.push(<path key={i} d={`M ${cx} ${-OVERLAP} C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H + OVERLAP}`}
-          stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
-      } else if (ch === '/') {
-        const x2 = (i - 1) * CELL_W + CELL_W / 2;
-        els.push(<path key={i} d={`M ${cx} ${-OVERLAP} C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H + OVERLAP}`}
-          stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
-      }
-    }
-
-    return (
-      <svg className="graph-svg" width={w} height={ROW_H}
-        viewBox={`-3 -${OVERLAP + 2} ${w + 6} ${ROW_H + OVERLAP * 2 + 4}`}>
-        {els}
-      </svg>
-    );
-  };
 
   const isSidebarCollapsed = sidebarWidth < 20;
 
@@ -988,20 +942,12 @@ function GitVisualizer() {
                   ) : graphRows.length === 0 ? (
                     <p className="commit-status">{t('commit.empty')}</p>
                   ) : (
-                    graphRows.map((row, idx) => {
-                      if (!row.commit) {
-                        return (
-                          <div key={`g-${idx}`} className="commit-item commit-item--connector">
-                            <div className="commit-graph-col">{renderGraph(row.graph)}</div>
-                          </div>
-                        );
-                      }
+                    graphRows.map((row) => {
+                      if (!row.commit) return null;
                       const c = row.commit;
                       return (
                         <div key={c.hash} className="commit-item">
-                          <div className="commit-item-inner">
-                            <div className="commit-graph-col">{renderGraph(row.graph)}</div>
-                            <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
+                          <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
                               <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
                               <div className="commit-meta">
                                 <span className="commit-hash">{c.hash.slice(0, 7)}</span>
@@ -1009,7 +955,6 @@ function GitVisualizer() {
                                 <span className="commit-date">{c.date?.split('T')[0] || c.date}</span>
                               </div>
                             </div>
-                          </div>
                           {expandedCommit === c.hash && (
                             <div className="commit-files">
                               {commitFilesLoading ? (
