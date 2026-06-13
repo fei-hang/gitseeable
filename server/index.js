@@ -461,7 +461,19 @@ app.post('/api/conflict-files', async (req, res) => {
     const git = getGit(dirPath);
     const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
     const files = status.split('\n').filter(Boolean);
-    res.json({ files });
+    let type = null;
+    if (files.length > 0) {
+      const gitDir = path.join(dirPath, '.git');
+      try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); type = 'merge'; } catch (_) {}
+      if (!type) {
+        try { await fs.promises.access(path.join(gitDir, 'rebase-merge')); type = 'rebase'; } catch (_) {}
+      }
+      if (!type) {
+        try { await fs.promises.access(path.join(gitDir, 'rebase-apply')); type = 'rebase'; } catch (_) {}
+      }
+      if (!type) type = 'merge';
+    }
+    res.json({ files, type });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

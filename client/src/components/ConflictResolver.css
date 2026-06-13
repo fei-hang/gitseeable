@@ -184,3 +184,8 @@
   min-width: 200px;
   border-right: 1px solid var(--border-light);
 }
+
+.diff-line-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+}

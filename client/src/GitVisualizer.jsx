@@ -908,6 +908,21 @@ function GitVisualizer() {
     }
   }, [view, activeTab, selectedBranch]);
 
+  useEffect(() => {
+    if (view === 'analyze' && currentPath && gitInfo) {
+      (async () => {
+        try {
+          const { files, type } = await fetchConflictFiles(currentPath);
+          if (files && files.length > 0) {
+            setConflictFiles(files);
+            setConflictType(type || 'merge');
+            setActiveTab('conflicts');
+          }
+        } catch (_) {}
+      })();
+    }
+  }, [view, currentPath, gitInfo]);
+
   if (initialLoading) {
     return <div className="git-visualizer"><p className="initial-loading">{t('common.restoring')}</p></div>;
   }
