@@ -416,7 +416,7 @@ app.post('/api/compare-branches', async (req, res) => {
   }
 });
 
-// 变基当前分支到目标分支
+// 将目标分支变基到当前分支，完成后切回当前分支
 app.post('/api/rebase-branch', async (req, res) => {
   try {
     const { dirPath, currentBranch, targetBranch } = req.body;
@@ -425,6 +425,8 @@ app.post('/api/rebase-branch', async (req, res) => {
     }
     const git = getGit(dirPath);
     await git.raw(['rebase', currentBranch, targetBranch]);
+    // git rebase <current> <target> 会切换到 target 分支，切回当前分支
+    await git.raw(['checkout', currentBranch]);
     res.json({ ok: true });
   } catch (error) {
     console.error('变基分支时出错:', error);
