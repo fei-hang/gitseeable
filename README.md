@@ -68,7 +68,7 @@ Open http://localhost:3000 in your browser.
 
 You can share the following prompt with an AI coding assistant (Cursor, Claude Code, etc.) to clone and start this project automatically:
 
-> Clone https://github.com/fei-hang/gitseeable.git, then run `nvm use 20.19.3` to set the correct Node version, install dependencies with `npm install && cd client && npm install && cd ../server && npm install`, and start both servers with `cd .. && npm run dev`. The dev servers are long-lived processes — do not wait for them to exit. Use `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` to verify the backend is running.
+> Clone https://github.com/fei-hang/gitseeable.git, then run `nvm use 20.19.3` to set the correct Node version, and install dependencies with `npm install && cd client && npm install && cd ../server && npm install`. Start development with `node server/index.js &` and `npx vite &` (Linux/macOS) or `Start-Job -ScriptBlock { node server/index.js }` and `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }` (PowerShell). Background the processes so your terminal stays available. Verify the backend with `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` and open http://localhost:3000 in the browser.
 
 ## License
 

@@ -105,10 +105,11 @@ All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `P
 - **Vite proxy**: `client/vite.config.js` proxies `/api` → `localhost:3001`. `API_BASE_URL` is `""` (empty string).
 - **Module systems**: `client/` is ESM (type: "module"), `server/` is CommonJS (`require`).
 - **Port polling, not `Start-Sleep`**: To wait for server startup, poll the port instead of sleeping — `Start-Sleep` produces no output and causes the agent to appear frozen. Use `Test-NetConnection -ComputerName localhost -Port 3001 -WarningAction SilentlyContinue` or try `Invoke-WebRequest http://localhost:3001/api/drives -ErrorAction SilentlyContinue` in a loop with a short sleep (≤500ms).
-- **Start server + client without hanging**: Use `Start-Process` — but **never** combine multiple `Start-Process` calls in one bash call with semicolons. Power​Shell waits for all child processes to exit when `.cmd` scripts (e.g. `npx.cmd`) are involved, causing the tool to hang.
+- **Start server + client without hanging**: Use `Start-Job` to run each service as a PowerShell background job. `Start-Job` returns immediately, so the Bash tool completes instantly.
   - **Correct pattern** — two separate bash calls:
-    1. `Start-Process -NoNewWindow -FilePath "node" -ArgumentList "server/index.js"`
-    2. `Start-Process -NoNewWindow -FilePath "npx.cmd" -ArgumentList "vite" -WorkingDirectory "D:\softwareDataDirectory\JavaScript\gitseeable\client"`
+    1. `Start-Job -ScriptBlock { node server/index.js }`
+    2. `Start-Job -ScriptBlock { Set-Location "D:\softwareDataDirectory\JavaScript\gitseeable\client"; npx.cmd vite }`
+  - To verify startup, poll the port with `Test-NetConnection` or `Invoke-WebRequest` in a loop.
 
 ## OpenCode skills
 
