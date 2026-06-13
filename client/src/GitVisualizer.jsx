@@ -703,11 +703,11 @@ function GitVisualizer() {
     return [...graphStr].map((ch, i) => {
       const color = LANE_COLORS[i % LANE_COLORS.length];
       if (ch === ' ') return <span key={i} className="graph-char graph-char--space" />;
-      if (ch === '*') return <span key={i} className="graph-char graph-char--node" style={{ '--gc': color }}>●</span>;
-      if (ch === '|') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>│</span>;
-      if (ch === '/') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>╱</span>;
-      if (ch === '\\') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>╲</span>;
-      return <span key={i} className="graph-char" style={{ '--gc': color }}>{ch}</span>;
+      if (ch === '*') return <span key={i} className="graph-char graph-char--node" style={{ '--gc': color }} />;
+      if (ch === '|') return <span key={i} className="graph-char graph-char--line-v" style={{ '--gc': color }} />;
+      if (ch === '/') return <span key={i} className="graph-char graph-char--line-dr" style={{ '--gc': color }} />;
+      if (ch === '\\') return <span key={i} className="graph-char graph-char--line-dl" style={{ '--gc': color }} />;
+      return <span key={i} className="graph-char" />;
     });
   };
 
