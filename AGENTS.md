@@ -13,6 +13,10 @@ No tests, no CI/CD, no Prettier, no TypeScript in source (`.d.ts` devDeps are ID
 - Remote: `origin` → `https://github.com/fei-hang/gitseeable.git`
 - All 6 commits rewrote with `git filter-branch` — use `git push -f origin main` after any history rewrite
 
+## Commit workflow
+
+After every modification (bug fix, feature, refactor, config change), run `git commit` with a descriptive message. **Do NOT run `git push`** — pushing is done manually.
+
 ## Dependencies
 
 Three independent `npm install` calls — **no npm workspaces**:
@@ -44,7 +48,7 @@ package.json    — root, only depends on concurrently
 
 ## API endpoints
 
-All in `server/index.js` (~365 lines). REST: `GET /api/drives`, remainder are `POST` calls.
+All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `POST` calls.
 
 | Endpoint | Purpose |
 |---|---|
@@ -54,6 +58,15 @@ All in `server/index.js` (~365 lines). REST: `GET /api/drives`, remainder are `P
 | `POST /api/branch` | Create / rename / delete branch |
 | `POST /api/commit-files` | List changed files in a commit |
 | `POST /api/commit-file-diff` | Get per-file diff (only +/- lines, no metadata) |
+| `POST /api/commit-graph` | Git log --graph with pagination, optional `branch` filter |
+| `POST /api/merge-branch` | Git merge a branch into current |
+| `POST /api/rebase-branch` | Git rebase (two-arg form: `git rebase <current> <target>`) |
+| `POST /api/local-status` | Git status --porcelain (filters out pure directories) |
+| `POST /api/local-commit` | Git add + git commit |
+| `POST /api/local-stage` | Git add individual files |
+| `POST /api/local-unstage` | Git restore --staged |
+| `POST /api/local-restore` | Git checkout/restore for files |
+| `POST /api/local-file-diff` | Git diff for a specific file |
 | `GET /api/drives` | Windows drive enumeration |
 
 ## Frontend conventions
@@ -63,6 +76,25 @@ All in `server/index.js` (~365 lines). REST: `GET /api/drives`, remainder are `P
 - **Components**: Functional + hooks, `handle*` event handlers, one file per component, no PropTypes.
 - **Sidebar**: Resizable via drag handle (min-width 80px). Commit items expandable: click commit → files list → click file → per-file diff.
 - **Dangerous actions**: Context menu `danger` boolean property styles destructive ops red.
+
+## Progress
+
+### Implemented features
+- **Theme toggle**: Light/dark mode persisted to `state.json`, sun/moon button in both headers, all hardcoded colors replaced with CSS variables.
+- **Branch graph**: `POST /api/commit-graph` returns `git log --graph` with pagination. Frontend renders colored ASCII lanes (8-color palette) with connector-only rows for topology. Optional `branch` param filters to specific branch instead of `--all`.
+- **Local changes tab**: Status → stage/unstage/restore flow. `POST /api/local-status` filters out pure directories. Untracked files excluded from restore API (shows skip count in confirm dialog).
+- **Side-by-side diff**: Virtual scroll (ROW_HEIGHT = 20px, ±20 buffer) for performance. Draggable split pane divider between original/modified columns.
+- **Commit list pagination**: Page size selector (10/20/50/100/200), go-to-page input with Enter support. `POST /api/commits` supports `pageSize <= 0` for no limit.
+- **Merge & rebase**: `POST /api/merge-branch` and `POST /api/rebase-branch` (two-arg form). Post-operation graph reloads.
+- **Remote branch checkout**: Branches with `/` auto-create local tracking branch (`--track`).
+- **Checkout conflict detection**: Error string `'would be overwritten by checkout'` triggers i18n key `dialog.checkoutConflict`.
+- **Branch graph filtering**: Double-click branch name → reloads graph filtered by that branch. Click branch label → resets to show all branches.
+
+### Key conventions
+- CSS variables in `index.css` (`:root` + `[data-theme="dark"]`). BEM naming. `--menu-x`/`--menu-y` for context menu positioning.
+- Frontend spells skill as `ui-design-system` (not `ui-new`).
+- Graph rendering uses 8 fixed lane colors, char-by-char coloring based on position in graph string.
+- Virtual scroll `ResizeObserver` effect has empty deps — observes once on mount.
 
 ## Dev server quirks
 
@@ -78,4 +110,7 @@ All in `server/index.js` (~365 lines). REST: `GET /api/drives`, remainder are `P
 Loaded from `.opencode/skills/`:
 - `frontend-spec` — coding conventions (2-space, single quotes, BEM CSS, etc.)
 - `dy-skill-i18n` — i18n translation workflow
-- `ui-new` — UI component generation and design system
+- `ui-design-system` — UI component generation and design system
+
+Also available (system-level, `~/.config/opencode/skills/`):
+- `kimi-webbridge` — browser automation, screenshot, and web interaction
