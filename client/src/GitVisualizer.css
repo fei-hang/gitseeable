@@ -1358,9 +1358,11 @@
 }
 
 .graph-char--line {
-  font-size: 10px;
-  line-height: inherit;
-  opacity: 0.85;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.55;
+  width: 8px;
+  vertical-align: top;
 }
 
 @media (max-width: 768px) {

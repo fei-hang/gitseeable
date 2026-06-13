@@ -242,7 +242,22 @@ app.post('/api/commit-graph', async (req, res) => {
         }
       });
     }
-    res.json({ rows, total, page, pageSize });
+    // Insert visual connector rows between consecutive commits on the same lane
+    const finalRows = [];
+    for (let i = 0; i < rows.length; i++) {
+      if (i > 0 && rows[i].commit && rows[i - 1].commit) {
+        const currStar = rows[i].graph.indexOf('*');
+        const prevStar = rows[i - 1].graph.indexOf('*');
+        if (currStar !== -1 && prevStar !== -1 && currStar === prevStar) {
+          const maxLen = Math.max(rows[i - 1].graph.length, rows[i].graph.length);
+          let conn = '';
+          for (let j = 0; j < maxLen; j++) conn += j === prevStar ? '|' : ' ';
+          finalRows.push({ graph: conn, commit: null });
+        }
+      }
+      finalRows.push(rows[i]);
+    }
+    res.json({ rows: finalRows, total, page, pageSize });
   } catch (error) {
     console.error('获取提交图时出错:', error);
     res.status(500).json({ error: error.message });
