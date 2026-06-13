@@ -139,6 +139,7 @@
     },
     "checkoutFail": "Checkout failed",
     "checkoutConflict": "You have local changes that would be overwritten. Please commit or stash them before switching branches.",
+    "checkoutNeedsMerge": "You have unresolved merge conflicts. Please resolve them before switching branches.",
     "createFail": "Create failed",
     "mergeFail": "Merge failed",
     "renameFail": "Rename failed",

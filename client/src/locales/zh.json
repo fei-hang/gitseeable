@@ -139,6 +139,7 @@
     },
     "checkoutFail": "迁出失败",
     "checkoutConflict": "你本地已经存在修改过的文件，请 commit 后再迁出分支。",
+    "checkoutNeedsMerge": "存在未解决的合并冲突，请先解决冲突后再迁出分支。",
     "createFail": "创建失败",
     "mergeFail": "合并失败",
     "renameFail": "重命名失败",

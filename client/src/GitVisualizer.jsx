@@ -257,6 +257,8 @@ function GitVisualizer() {
       const msg = err.response?.data?.error || err.message;
       if (msg.includes('would be overwritten by checkout')) {
         Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: i18n.t('dialog.checkoutConflict') });
+      } else if (msg.includes('needs merge') || msg.includes('resolve your current index')) {
+        Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: i18n.t('dialog.checkoutNeedsMerge') });
       } else {
         Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: msg });
       }
