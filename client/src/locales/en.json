@@ -145,7 +145,22 @@
     "deleteFail": "Delete failed",
     "compareFail": "Compare failed",
     "diffFail": "Load failed",
-    "rebaseFail": "Rebase failed"
+    "rebaseFail": "Rebase failed",
+    "conflict": "Conflict",
+    "conflictTitle": "Merge Conflict",
+    "conflictMergeFail": "Merge failed due to conflicts",
+    "conflictRebaseFail": "Rebase failed due to conflicts"
+  },
+  "conflict": {
+    "titleMerge": "Merge Conflict",
+    "titleRebase": "Rebase Conflict",
+    "fileCount": "{{count}} conflicted file(s)",
+    "abortMerge": "Abort Merge",
+    "abortRebase": "Abort Rebase",
+    "selectFile": "Select a conflicted file",
+    "ours": "Current Branch",
+    "theirs": "Incoming Branch",
+    "abortSuccess": "Merge/Rebase aborted"
   },
   "error": {
     "loadDrives": "Failed to load drives: {{msg}}",

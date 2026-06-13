@@ -309,6 +309,16 @@
   box-shadow: var(--shadow-sm);
 }
 
+.analyze-tab--conflict {
+  color: var(--danger);
+}
+
+.analyze-tab--conflict.analyze-tab--active {
+  color: var(--danger);
+  background: var(--danger-light);
+  box-shadow: var(--shadow-sm);
+}
+
 .analyze-path {
   font-family: var(--font-mono);
   font-size: 13px;

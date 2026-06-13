@@ -294,6 +294,14 @@ app.post('/api/merge-branch', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('合并分支时出错:', error);
+    const git = getGit(req.body.dirPath);
+    try {
+      const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+      const files = status.split('\n').filter(Boolean);
+      if (files.length > 0) {
+        return res.json({ conflict: true, files, type: 'merge' });
+      }
+    } catch (_) {}
     res.status(500).json({ error: error.message });
   }
 });
@@ -428,6 +436,60 @@ app.post('/api/rebase-branch', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('变基分支时出错:', error);
+    const git = getGit(req.body.dirPath);
+    try {
+      const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+      const files = status.split('\n').filter(Boolean);
+      if (files.length > 0) {
+        return res.json({ conflict: true, files, type: 'rebase' });
+      }
+    } catch (_) {}
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取冲突文件列表
+app.post('/api/conflict-files', async (req, res) => {
+  try {
+    const { dirPath } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+    const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+    const files = status.split('\n').filter(Boolean);
+    res.json({ files });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取冲突文件的 our/theirs 内容
+app.post('/api/conflict-file-content', async (req, res) => {
+  try {
+    const { dirPath, filePath } = req.body;
+    if (!dirPath || !filePath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+    let ours = '', theirs = '';
+    try { ours = await git.raw(['show', ':2:' + filePath]); } catch (_) { ours = ''; }
+    try { theirs = await git.raw(['show', ':3:' + filePath]); } catch (_) { theirs = ''; }
+    res.json({ ours, theirs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 中止合并或变基
+app.post('/api/abort-merge', async (req, res) => {
+  try {
+    const { dirPath } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+    try {
+      await git.raw(['merge', '--abort']);
+    } catch (_) {
+      await git.raw(['rebase', '--abort']);
+    }
+    res.json({ ok: true });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

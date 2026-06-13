@@ -10,10 +10,12 @@ import {
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
   fetchCommitFiles, fetchCommitFileDiff,
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
-  stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits
+  stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
+  fetchConflictFiles, fetchConflictFileContent, abortMerge
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
+import ConflictResolver from './components/ConflictResolver';
 import './GitVisualizer.css';
 
 function GitVisualizer() {
@@ -65,6 +67,8 @@ function GitVisualizer() {
   const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
   const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
   const [theme, setTheme] = useState('light');
+  const [conflictFiles, setConflictFiles] = useState(null);
+  const [conflictType, setConflictType] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -229,6 +233,15 @@ function GitVisualizer() {
     setContextMenu(null);
   };
 
+  const handleAbortConflict = async () => {
+    setConflictFiles(null);
+    setConflictType(null);
+    setActiveTab('commits');
+    const data = await handleRefreshGitInfo();
+    setSelectedBranch(data.currentBranch);
+    await handleLoadGraph();
+  };
+
   const handleRefreshGitInfo = async () => {
     const data = await checkGit(currentPath);
     setGitInfo(data);
@@ -283,7 +296,13 @@ function GitVisualizer() {
     });
     if (!isConfirmed) return;
     try {
-      await mergeBranch(currentPath, sourceBranch);
+      const res = await mergeBranch(currentPath, sourceBranch);
+      if (res.conflict) {
+        setConflictFiles(res.files);
+        setConflictType('merge');
+        setActiveTab('conflicts');
+        return;
+      }
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
       await handleLoadGraph();
@@ -437,7 +456,13 @@ function GitVisualizer() {
     });
     if (!isConfirmed) return;
     try {
-      await rebaseBranch(currentPath, targetBranch);
+      const res = await rebaseBranch(currentPath, targetBranch);
+      if (res.conflict) {
+        setConflictFiles(res.files);
+        setConflictType('rebase');
+        setActiveTab('conflicts');
+        return;
+      }
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
       await handleLoadGraph();
@@ -899,6 +924,9 @@ function GitVisualizer() {
             {compareData && (
               <button className={`analyze-tab${activeTab === 'compare' ? ' analyze-tab--active' : ''}`} onClick={() => setActiveTab('compare')}>{t('analyze.tabCompare')}</button>
             )}
+            {conflictFiles && (
+              <button className={`analyze-tab${activeTab === 'conflicts' ? ' analyze-tab--active' : ''} analyze-tab--conflict`} onClick={() => setActiveTab('conflicts')}>{t('dialog.conflict')}</button>
+            )}
           </div>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
           <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
@@ -1246,6 +1274,15 @@ function GitVisualizer() {
                   )}
                 </div>
               </div>
+            )}
+            {activeTab === 'conflicts' && conflictFiles && (
+              <ConflictResolver
+                currentPath={currentPath}
+                conflictFiles={conflictFiles}
+                conflictType={conflictType}
+                onAbort={handleAbortConflict}
+                onRefresh={handleRefreshGitInfo}
+              />
             )}
           </div>
         </div>

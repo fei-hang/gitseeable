@@ -73,6 +73,18 @@ export function rebaseBranch(dirPath, targetBranch) {
   return axios.post(`${API_BASE_URL}/api/rebase-branch`, { dirPath, targetBranch }).then(res => res.data);
 }
 
+export function fetchConflictFiles(dirPath) {
+  return axios.post(`${API_BASE_URL}/api/conflict-files`, { dirPath }).then(res => res.data);
+}
+
+export function fetchConflictFileContent(dirPath, filePath) {
+  return axios.post(`${API_BASE_URL}/api/conflict-file-content`, { dirPath, filePath }).then(res => res.data);
+}
+
+export function abortMerge(dirPath) {
+  return axios.post(`${API_BASE_URL}/api/abort-merge`, { dirPath }).then(res => res.data);
+}
+
 export function saveLastPath(dirPath) {
   return axios.post(`${API_BASE_URL}/api/save-last-path`, { dirPath });
 }

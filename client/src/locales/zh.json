@@ -145,7 +145,22 @@
     "deleteFail": "删除失败",
     "compareFail": "比较失败",
     "diffFail": "加载失败",
-    "rebaseFail": "变基失败"
+    "rebaseFail": "变基失败",
+    "conflict": "冲突",
+    "conflictTitle": "合并冲突",
+    "conflictMergeFail": "合并失败，存在冲突",
+    "conflictRebaseFail": "变基失败，存在冲突"
+  },
+  "conflict": {
+    "titleMerge": "合并冲突",
+    "titleRebase": "变基冲突",
+    "fileCount": "共 {{count}} 个冲突文件",
+    "abortMerge": "取消合并",
+    "abortRebase": "取消变基",
+    "selectFile": "请选择一个冲突文件",
+    "ours": "当前分支",
+    "theirs": "合并目标分支",
+    "abortSuccess": "已取消合并/变基"
   },
   "error": {
     "loadDrives": "加载盘符失败: {{msg}}",
