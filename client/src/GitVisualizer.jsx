@@ -234,7 +234,12 @@ function GitVisualizer() {
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
     } catch (err) {
-      Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: err.response?.data?.error || err.message });
+      const msg = err.response?.data?.error || err.message;
+      if (msg.includes('would be overwritten by checkout')) {
+        Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: i18n.t('dialog.checkoutConflict') });
+      } else {
+        Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: msg });
+      }
     } finally {
       setCommitsLoading(false);
     }
