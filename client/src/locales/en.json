@@ -99,7 +99,7 @@
     "checkout": "Checkout {{branch}}",
     "create": "New branch from {{branch}}",
     "merge": "Merge {{branch}} into {{current}}",
-    "rebase": "Rebase {{branch}} onto {{current}}",
+    "rebase": "Rebase current onto {{branch}}",
     "compare": "Compare {{branch}} with {{current}}",
     "fetch": "Fetch",
     "push": "Push",
@@ -118,7 +118,7 @@
     },
     "rebase": {
       "title": "Confirm Rebase",
-      "text": "Are you sure you want to rebase \"{{target}}\" onto \"{{current}}\"?"
+      "text": "Are you sure you want to rebase the current branch onto \"{{target}}\"?"
     },
     "rename": {
       "title": "Rename Branch",

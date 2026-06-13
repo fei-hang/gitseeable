@@ -99,7 +99,7 @@
     "checkout": "迁出 {{branch}} 分支",
     "create": "从 {{branch}} 分支新建分支",
     "merge": "将 {{branch}} 合并到 {{current}}",
-    "rebase": "将 {{branch}} 变基到 {{current}}",
+    "rebase": "将当前变基到 {{branch}}",
     "compare": "{{branch}} 分支与 {{current}} 比较",
     "fetch": "更新",
     "push": "推送",
@@ -118,7 +118,7 @@
     },
     "rebase": {
       "title": "确认变基",
-      "text": "确定将分支 \"{{target}}\" 变基到 \"{{current}}\"？"
+      "text": "确定要将当前分支变基到 \"{{target}}\" 上吗？"
     },
     "rename": {
       "title": "重命名分支",

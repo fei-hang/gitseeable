@@ -60,7 +60,7 @@ All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `P
 | `POST /api/commit-file-diff` | Get per-file diff (only +/- lines, no metadata) |
 | `POST /api/commit-graph` | Git log --graph with pagination, optional `branch` filter |
 | `POST /api/merge-branch` | Git merge a branch into current |
-| `POST /api/rebase-branch` | Git rebase (two-arg form: `git rebase <current> <target>`) |
+| `POST /api/rebase-branch` | Git rebase (single-arg form: `git rebase <target>`, rebases current branch onto target) |
 | `POST /api/local-status` | Git status --porcelain (filters out pure directories) |
 | `POST /api/local-commit` | Git add + git commit |
 | `POST /api/local-stage` | Git add individual files |

@@ -416,17 +416,15 @@ app.post('/api/compare-branches', async (req, res) => {
   }
 });
 
-// 将目标分支变基到当前分支，完成后切回当前分支
+// 将当前分支变基到目标分支
 app.post('/api/rebase-branch', async (req, res) => {
   try {
-    const { dirPath, currentBranch, targetBranch } = req.body;
-    if (!dirPath || !currentBranch || !targetBranch) {
+    const { dirPath, targetBranch } = req.body;
+    if (!dirPath || !targetBranch) {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    await git.raw(['rebase', currentBranch, targetBranch]);
-    // git rebase <current> <target> 会切换到 target 分支，切回当前分支
-    await git.raw(['checkout', currentBranch]);
+    await git.raw(['rebase', targetBranch]);
     res.json({ ok: true });
   } catch (error) {
     console.error('变基分支时出错:', error);
