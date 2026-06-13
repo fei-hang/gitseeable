@@ -166,6 +166,7 @@
     "theirs": "Incoming Branch",
     "abortSuccess": "Merge/Rebase aborted",
     "resolve": "Resolve",
+    "resolveAll": "Resolve All",
     "resolveSuccess": "Conflict resolved",
     "allResolved": "All conflicts resolved"
   },

@@ -87,6 +87,10 @@
   background: var(--danger-light);
 }
 
+.conflict-file-item--resolved .conflict-file-icon {
+  color: var(--success);
+}
+
 .conflict-file-icon {
   font-size: 14px;
   font-weight: 700;
@@ -238,4 +242,10 @@
   word-break: break-all;
   overflow-wrap: break-word;
   color: var(--text-primary);
+}
+
+.conflict-row-separator {
+  height: 0;
+  border-bottom: 1px dashed var(--border-light);
+  margin: 0 4px;
 }

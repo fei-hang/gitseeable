@@ -166,6 +166,7 @@
     "theirs": "合并目标分支",
     "abortSuccess": "已取消合并/变基",
     "resolve": "解决冲突",
+    "resolveAll": "全部解决",
     "resolveSuccess": "冲突已解决",
     "allResolved": "所有冲突已解决"
   },
