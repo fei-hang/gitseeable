@@ -196,6 +196,59 @@ app.post('/api/commits', async (req, res) => {
   }
 });
 
+// 获取提交历史分支图
+app.post('/api/commit-graph', async (req, res) => {
+  try {
+    const { dirPath, page = 1, pageSize = 50, branch } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+
+    const revListArgs = branch ? ['rev-list', branch, '--count'] : ['rev-list', '--all', '--count'];
+    const totalRaw = await git.raw(revListArgs);
+    const total = parseInt(totalRaw.trim(), 10) || 0;
+
+    const skip = (page - 1) * pageSize;
+    const graphSep = '|||GRAPH_DAT|||';
+    const logArgs = branch ? [branch] : ['--all'];
+    const args = ['log', ...logArgs, '--graph', `--pretty=format:${graphSep}%H|||%P|||%s|||%an|||%aI|||%d`];
+    if (skip > 0) args.push(`--skip=${skip}`);
+    if (pageSize > 0) args.push(`--max-count=${pageSize}`);
+
+    const raw = await git.raw(args);
+    if (!raw.trim()) {
+      return res.json({ rows: [], total, page, pageSize });
+    }
+
+    const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(Boolean);
+    const rows = [];
+    for (const line of lines) {
+      const sepIdx = line.indexOf(graphSep);
+      if (sepIdx === -1) {
+        rows.push({ graph: line, commit: null });
+        continue;
+      }
+      const graphPart = line.substring(0, sepIdx);
+      const dataPart = line.substring(sepIdx + graphSep.length);
+      const parts = dataPart.split('|||');
+      rows.push({
+        graph: graphPart,
+        commit: {
+          hash: parts[0] || '',
+          parents: parts[1] || '',
+          message: parts[2] || '',
+          author: parts[3] || '',
+          date: parts[4] || '',
+          refs: parts[5] || ''
+        }
+      });
+    }
+    res.json({ rows, total, page, pageSize });
+  } catch (error) {
+    console.error('获取提交图时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 从指定源分支创建新分支
 app.post('/api/create-branch', async (req, res) => {
   try {
@@ -470,6 +523,7 @@ app.post('/api/local-status', async (req, res) => {
       const idx = line[0];
       const wd = line[1];
       const filePath = line.slice(3);
+      if (filePath.endsWith('/')) continue;
       if (idx !== ' ' && idx !== '?' && idx !== '!') {
         staged.push({ path: filePath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
       }

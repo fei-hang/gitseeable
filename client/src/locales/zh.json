@@ -79,6 +79,7 @@
     "loading": "加载中...",
     "empty": "该分支没有提交记录",
     "count": "{{count}} 个提交",
+    "showAll": "点击查看全部分支",
     "prevPage": "上一页",
     "nextPage": "下一页",
     "pageSize": "条/页",

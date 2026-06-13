@@ -79,6 +79,7 @@
     "loading": "Loading...",
     "empty": "No commits on this branch",
     "count": "{{count}} commits",
+    "showAll": "Click to show all branches",
     "prevPage": "Prev",
     "nextPage": "Next",
     "pageSize": "per page",

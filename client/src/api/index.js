@@ -17,6 +17,10 @@ export function fetchCommits(dirPath, branch, page = 1, pageSize = COMMITS_PAGE_
   return axios.post(`${API_BASE_URL}/api/commits`, { dirPath, branch, page, pageSize }).then(res => res.data);
 }
 
+export function fetchCommitGraph(dirPath, page = 1, pageSize = COMMITS_PAGE_SIZE, branch) {
+  return axios.post(`${API_BASE_URL}/api/commit-graph`, { dirPath, page, pageSize, branch }).then(res => res.data);
+}
+
 export function checkoutBranch(dirPath, branch) {
   return axios.post(`${API_BASE_URL}/api/checkout`, { dirPath, branch }).then(res => res.data);
 }
