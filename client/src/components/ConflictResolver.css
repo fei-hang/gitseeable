@@ -246,6 +246,6 @@
 
 .conflict-row-separator {
   height: 0;
-  border-bottom: 1px dashed var(--border-light);
+  border-bottom: 1px solid var(--border);
   margin: 0 4px;
 }

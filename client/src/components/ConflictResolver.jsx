@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchConflictFileContent, abortMerge, resolveConflictFile } from '../api';
+import { fetchConflictFileContent, abortMerge, resolveConflictFile, fetchUiState, saveUiState } from '../api';
 import './ConflictResolver.css';
 
 export default function ConflictResolver({ currentPath, currentBranch, conflictFiles, conflictType, theirsBranch, onAbort, onRefresh, onFileResolved }) {
@@ -15,23 +15,31 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
   const [resolvingAll, setResolvingAll] = useState(false);
   const [selectionsByFile, setSelectionsByFile] = useState({});
   const loadedContent = useRef({});
-
-  const storageKey = `conflict-selections-${currentPath}`;
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        setSelectionsByFile(JSON.parse(saved));
+    fetchUiState().then(state => {
+      const cs = state.conflictSelections || {};
+      if (cs[currentPath]) {
+        setSelectionsByFile(cs[currentPath]);
       }
-    } catch (_) {}
-  }, [storageKey]);
+    }).catch(() => {});
+  }, [currentPath]);
 
   useEffect(() => {
-    if (Object.keys(selectionsByFile).length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(selectionsByFile));
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
     }
-  }, [selectionsByFile, storageKey]);
+    const timer = setTimeout(() => {
+      fetchUiState().then(state => {
+        const cs = state.conflictSelections || {};
+        cs[currentPath] = selectionsByFile;
+        return saveUiState({ conflictSelections: cs });
+      }).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [selectionsByFile, currentPath]);
 
   const currentSelections = (selectedFile && selectionsByFile[selectedFile]) || {};
 
@@ -111,7 +119,11 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     setAborting(true);
     try {
       await abortMerge(currentPath);
-      localStorage.removeItem(storageKey);
+      fetchUiState().then(state => {
+        const cs = state.conflictSelections || {};
+        delete cs[currentPath];
+        saveUiState({ conflictSelections: cs });
+      }).catch(() => {});
       onAbort();
     } catch (_) {
       setAborting(false);
@@ -199,7 +211,11 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
         );
         await resolveConflictFile(currentPath, file, content);
       }
-      localStorage.removeItem(storageKey);
+      fetchUiState().then(state => {
+        const cs = state.conflictSelections || {};
+        delete cs[currentPath];
+        saveUiState({ conflictSelections: cs });
+      }).catch(() => {});
       onFileResolved();
     } catch (_) {
       setResolvingAll(false);
@@ -223,6 +239,25 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     return sel?.ours || sel?.theirs;
   });
 
+  const fileAllSelected = useCallback((file) => {
+    const fileData = loadedContent.current[file];
+    if (!fileData) return false;
+    let rowCount = 0;
+    for (const hunk of (fileData.hunks || [])) {
+      rowCount += Math.max(hunk.ourCount, hunk.theirCount);
+    }
+    if (rowCount === 0) return true;
+    const fileSelections = selectionsByFile[file] || {};
+    for (let i = 0; i < rowCount; i++) {
+      if (!fileSelections[i]?.ours && !fileSelections[i]?.theirs) return false;
+    }
+    return true;
+  }, [selectionsByFile]);
+
+  const allFilesAllSelected = useMemo(() => {
+    return conflictFiles.length > 0 && conflictFiles.every(file => fileAllSelected(file));
+  }, [conflictFiles, fileAllSelected]);
+
   return (
     <div className="conflict-view">
       <div className="conflict-header">
@@ -232,7 +267,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
           <button className="btn btn--primary" disabled={!allResolved || resolving} onClick={handleResolve}>
             {resolving ? t('common.loading') : t('conflict.resolve')}
           </button>
-          <button className="btn btn--primary" disabled={conflictFiles.length === 0 || resolvingAll} onClick={handleResolveAll}>
+          <button className="btn btn--primary" disabled={!allFilesAllSelected || resolvingAll} onClick={handleResolveAll}>
             {resolvingAll ? t('common.loading') : t('conflict.resolveAll')}
           </button>
           <button className="btn btn--danger" disabled={aborting} onClick={handleAbort}>
@@ -243,15 +278,14 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
       <div className="conflict-body">
         <div className="conflict-file-list">
           {conflictFiles.map((f) => {
-            const fileSelections = selectionsByFile[f];
-            const hasSelections = fileSelections && Object.keys(fileSelections).length > 0;
+            const allSelected = fileAllSelected(f);
             return (
               <div
                 key={f}
-                className={`conflict-file-item${selectedFile === f ? ' conflict-file-item--selected' : ''}${hasSelections ? ' conflict-file-item--resolved' : ''}`}
+                className={`conflict-file-item${selectedFile === f ? ' conflict-file-item--selected' : ''}${allSelected ? ' conflict-file-item--resolved' : ''}`}
                 onClick={() => setSelectedFile(f)}
               >
-                <span className="conflict-file-icon">{hasSelections ? '✓' : '!'}</span>
+                <span className="conflict-file-icon">{allSelected ? '✓' : '!'}</span>
                 <span className="conflict-file-path">{f}</span>
               </div>
             );

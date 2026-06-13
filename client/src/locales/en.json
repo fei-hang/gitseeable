@@ -165,7 +165,7 @@
     "ours": "Current Branch",
     "theirs": "Incoming Branch",
     "abortSuccess": "Merge/Rebase aborted",
-    "resolve": "Resolve",
+    "resolve": "Resolve This File",
     "resolveAll": "Resolve All",
     "resolveSuccess": "Conflict resolved",
     "allResolved": "All conflicts resolved"
