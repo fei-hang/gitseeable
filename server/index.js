@@ -540,6 +540,26 @@ app.post('/api/resolve-conflict-file', async (req, res) => {
   }
 });
 
+// 继续合并/变基（所有冲突解决后）
+app.post('/api/continue-merge', async (req, res) => {
+  try {
+    const { dirPath } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const git = getGit(dirPath);
+    const gitDir = path.join(dirPath, '.git');
+    let isMerge = false;
+    try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); isMerge = true; } catch (_) {}
+    if (isMerge) {
+      await git.raw(['-c', 'core.editor=true', 'merge', '--continue']);
+    } else {
+      await git.raw(['-c', 'core.editor=true', 'rebase', '--continue']);
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 获取单个commit的diff
 app.post('/api/commit-diff', async (req, res) => {
   try {

@@ -11,7 +11,7 @@ import {
   fetchCommitFiles, fetchCommitFileDiff,
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
   stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
-  fetchConflictFiles, fetchConflictFileContent, abortMerge
+  fetchConflictFiles, fetchConflictFileContent, abortMerge, continueMerge
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -252,6 +252,7 @@ function GitVisualizer() {
         setConflictType(type || 'merge');
         setConflictTheirsBranch(theirsBranch || null);
       } else {
+        await continueMerge(currentPath);
         setConflictFiles(null);
         setConflictType(null);
         setConflictTheirsBranch(null);
