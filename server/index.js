@@ -338,12 +338,12 @@ app.post('/api/compare-branches', async (req, res) => {
 // 变基当前分支到目标分支
 app.post('/api/rebase-branch', async (req, res) => {
   try {
-    const { dirPath, targetBranch } = req.body;
-    if (!dirPath || !targetBranch) {
+    const { dirPath, currentBranch, targetBranch } = req.body;
+    if (!dirPath || !currentBranch || !targetBranch) {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    await git.raw(['rebase', targetBranch]);
+    await git.raw(['rebase', currentBranch, targetBranch]);
     res.json({ ok: true });
   } catch (error) {
     console.error('变基分支时出错:', error);

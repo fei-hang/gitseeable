@@ -431,7 +431,7 @@ function GitVisualizer() {
     if (!isConfirmed) return;
     setCommitsLoading(true);
     try {
-      await rebaseBranch(currentPath, targetBranch);
+      await rebaseBranch(currentPath, gitInfo.currentBranch, targetBranch);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
       await handleLoadCommits(data.currentBranch, 1);
