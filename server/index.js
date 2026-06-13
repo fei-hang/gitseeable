@@ -290,7 +290,12 @@ app.post('/api/merge-branch', async (req, res) => {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    await git.raw(['merge', sourceBranch]);
+    const output = await git.raw(['merge', sourceBranch]);
+    if (output.includes('CONFLICT')) {
+      const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+      const files = status.split('\n').filter(Boolean);
+      return res.json({ conflict: true, files, type: 'merge' });
+    }
     res.json({ ok: true });
   } catch (error) {
     console.error('合并分支时出错:', error);
@@ -601,6 +606,7 @@ app.post('/api/local-status', async (req, res) => {
       const wd = line[1];
       const filePath = line.slice(3);
       if (filePath.endsWith('/')) continue;
+      if (idx === 'U' || wd === 'U') continue;
       if (idx !== ' ' && idx !== '?' && idx !== '!') {
         staged.push({ path: filePath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
       }
