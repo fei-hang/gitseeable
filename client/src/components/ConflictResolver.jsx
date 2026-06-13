@@ -61,7 +61,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
 
   const oursLines = ours.split('\n');
   const theirsLines = theirs.split('\n');
-  const maxLines = Math.max(oursLines.length, theirsLines.length);
+  const conflictIndices = [...conflictLines].sort((a, b) => a - b);
 
   return (
     <div className="conflict-view">
@@ -101,10 +101,8 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
               </div>
               <div className="conflict-diff-body">
                 <div className="conflict-diff-rows">
-                  {Array.from({ length: maxLines }).map((_, i) => {
-                    const isConflict = conflictLines.has(i);
-                    return (
-                      <div key={i} className={`conflict-diff-row${isConflict ? ' conflict-diff-row--diff' : ''}`}>
+                  {conflictIndices.map((i) => (
+                      <div key={i} className="conflict-diff-row conflict-diff-row--diff">
                         <div className="conflict-diff-cell">
                           <span className="diff-line-num">{i + 1}</span>
                           <span className="diff-line-content">{oursLines[i] || ''}</span>
@@ -114,8 +112,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
                           <span className="diff-line-content">{theirsLines[i] || ''}</span>
                         </div>
                       </div>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             </div>
