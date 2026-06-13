@@ -246,10 +246,11 @@ function GitVisualizer() {
 
   const handleConflictResolved = async () => {
     try {
-      const { files, type } = await fetchConflictFiles(currentPath);
+      const { files, type, theirsBranch } = await fetchConflictFiles(currentPath);
       if (files && files.length > 0) {
         setConflictFiles(files);
         setConflictType(type || 'merge');
+        setConflictTheirsBranch(theirsBranch || null);
       } else {
         setConflictFiles(null);
         setConflictType(null);
@@ -936,10 +937,11 @@ function GitVisualizer() {
     if (view === 'analyze' && currentPath && gitInfo) {
       (async () => {
         try {
-          const { files, type } = await fetchConflictFiles(currentPath);
+          const { files, type, theirsBranch } = await fetchConflictFiles(currentPath);
           if (files && files.length > 0) {
             setConflictFiles(files);
             setConflictType(type || 'merge');
+            setConflictTheirsBranch(theirsBranch || null);
             setActiveTab('conflicts');
           }
         } catch (_) {}

@@ -462,8 +462,9 @@ app.post('/api/conflict-files', async (req, res) => {
     const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
     const files = status.split('\n').filter(Boolean);
     let type = null;
+    let theirsBranch = null;
+    const gitDir = path.join(dirPath, '.git');
     if (files.length > 0) {
-      const gitDir = path.join(dirPath, '.git');
       try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); type = 'merge'; } catch (_) {}
       if (!type) {
         try { await fs.promises.access(path.join(gitDir, 'rebase-merge')); type = 'rebase'; } catch (_) {}
@@ -472,8 +473,19 @@ app.post('/api/conflict-files', async (req, res) => {
         try { await fs.promises.access(path.join(gitDir, 'rebase-apply')); type = 'rebase'; } catch (_) {}
       }
       if (!type) type = 'merge';
+      // try to get theirs branch name
+      try {
+        if (type === 'merge') {
+          const mergeMsg = await fs.promises.readFile(path.join(gitDir, 'MERGE_MSG'), 'utf-8');
+          const m = mergeMsg.match(/^Merge branch ['"]([^'"]+)/);
+          if (m) theirsBranch = m[1];
+        } else {
+          const headRef = await fs.promises.readFile(path.join(gitDir, 'rebase-merge', 'head-name'), 'utf-8');
+          theirsBranch = headRef.trim().replace('refs/heads/', '');
+        }
+      } catch (_) {}
     }
-    res.json({ files, type });
+    res.json({ files, type, theirsBranch });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
