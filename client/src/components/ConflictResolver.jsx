@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchConflictFileContent, abortMerge } from '../api';
 import './ConflictResolver.css';
 
-export default function ConflictResolver({ currentPath, conflictFiles, conflictType, onAbort, onRefresh }) {
+export default function ConflictResolver({ currentPath, currentBranch, conflictFiles, conflictType, theirsBranch, onAbort, onRefresh }) {
   const { t } = useTranslation();
   const [selectedFile, setSelectedFile] = useState(null);
   const [ours, setOurs] = useState('');
@@ -96,8 +96,8 @@ export default function ConflictResolver({ currentPath, conflictFiles, conflictT
           ) : (
               <div className="conflict-diff-view">
               <div className="conflict-diff-header">
-                <div className="conflict-diff-label">{t('conflict.ours')}</div>
-                <div className="conflict-diff-label">{t('conflict.theirs')}</div>
+                <div className="conflict-diff-label">{currentBranch || t('conflict.ours')}</div>
+                <div className="conflict-diff-label">{theirsBranch || t('conflict.theirs')}</div>
               </div>
               <div className="conflict-diff-body">
                 <div className="conflict-diff-rows">

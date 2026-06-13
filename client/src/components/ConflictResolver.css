@@ -148,6 +148,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conflict-diff-label:first-child {

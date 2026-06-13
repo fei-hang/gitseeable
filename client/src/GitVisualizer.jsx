@@ -69,6 +69,7 @@ function GitVisualizer() {
   const [theme, setTheme] = useState('light');
   const [conflictFiles, setConflictFiles] = useState(null);
   const [conflictType, setConflictType] = useState(null);
+  const [conflictTheirsBranch, setConflictTheirsBranch] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -236,6 +237,7 @@ function GitVisualizer() {
   const handleAbortConflict = async () => {
     setConflictFiles(null);
     setConflictType(null);
+    setConflictTheirsBranch(null);
     setActiveTab('commits');
     const data = await handleRefreshGitInfo();
     setSelectedBranch(data.currentBranch);
@@ -302,6 +304,7 @@ function GitVisualizer() {
       if (res.conflict) {
         setConflictFiles(res.files);
         setConflictType('merge');
+        setConflictTheirsBranch(sourceBranch);
         setActiveTab('conflicts');
         return;
       }
@@ -462,6 +465,7 @@ function GitVisualizer() {
       if (res.conflict) {
         setConflictFiles(res.files);
         setConflictType('rebase');
+        setConflictTheirsBranch(targetBranch);
         setActiveTab('conflicts');
         return;
       }
@@ -1295,8 +1299,10 @@ function GitVisualizer() {
             {activeTab === 'conflicts' && conflictFiles && (
               <ConflictResolver
                 currentPath={currentPath}
+                currentBranch={gitInfo.currentBranch}
                 conflictFiles={conflictFiles}
                 conflictType={conflictType}
+                theirsBranch={conflictTheirsBranch}
                 onAbort={handleAbortConflict}
                 onRefresh={handleRefreshGitInfo}
               />
