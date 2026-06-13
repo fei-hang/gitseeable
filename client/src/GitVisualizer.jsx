@@ -700,6 +700,7 @@ function GitVisualizer() {
 
   const CELL_W = 14;
   const ROW_H = 20;
+  const OVERLAP = 3;
 
   const renderGraph = (graphStr) => {
     if (!graphStr) return null;
@@ -715,10 +716,10 @@ function GitVisualizer() {
       if (ch === ' ') continue;
 
       if (ch === '|') {
-        els.push(<line key={`${i}-v`} x1={cx} y1={0} x2={cx} y2={ROW_H}
+        els.push(<line key={`${i}-v`} x1={cx} y1={-OVERLAP} x2={cx} y2={ROW_H + OVERLAP}
           stroke={color} strokeWidth={2} strokeLinecap="round" />);
       } else if (ch === '*') {
-        els.push(<line key={`${i}-vl`} x1={cx} y1={0} x2={cx} y2={ROW_H}
+        els.push(<line key={`${i}-vl`} x1={cx} y1={-OVERLAP} x2={cx} y2={ROW_H + OVERLAP}
           stroke={color} strokeWidth={2} strokeLinecap="round" opacity={0.55} />);
         els.push(<circle key={`${i}-nd`} cx={cx} cy={halfRow} r={4}
           fill={color} stroke="var(--background)" strokeWidth={2.5} />);
@@ -726,18 +727,18 @@ function GitVisualizer() {
           fill="none" stroke="var(--background)" strokeWidth={1} opacity={0.3} />);
       } else if (ch === '\\') {
         const x2 = (i + 1) * CELL_W + CELL_W / 2;
-        els.push(<path key={i} d={`M ${cx} 0 C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H}`}
+        els.push(<path key={i} d={`M ${cx} ${-OVERLAP} C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H + OVERLAP}`}
           stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
       } else if (ch === '/') {
         const x2 = (i - 1) * CELL_W + CELL_W / 2;
-        els.push(<path key={i} d={`M ${cx} 0 C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H}`}
+        els.push(<path key={i} d={`M ${cx} ${-OVERLAP} C ${cx} ${halfRow}, ${x2} ${halfRow}, ${x2} ${ROW_H + OVERLAP}`}
           stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.55} />);
       }
     }
 
     return (
       <svg className="graph-svg" width={w} height={ROW_H}
-        viewBox={`-3 -3 ${w + 6} ${ROW_H + 6}`}>
+        viewBox={`-3 -${OVERLAP + 2} ${w + 6} ${ROW_H + OVERLAP * 2 + 4}`}>
         {els}
       </svg>
     );
