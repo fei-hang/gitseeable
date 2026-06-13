@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import Swal from 'sweetalert2';
 import {
-  fetchDrives, fetchDirectories, checkGit, fetchCommits,
+  fetchDrives, fetchDirectories, checkGit,
+  fetchCommitGraph,
   saveLastPath, getLastPath,
   checkoutBranch, createBranch, mergeBranch, renameBranch,
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
@@ -26,11 +27,11 @@ function GitVisualizer() {
   const [inputPath, setInputPath] = useState('');
   const [gitInfo, setGitInfo] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState(null);
-  const [commits, setCommits] = useState([]);
   const [commitsTotal, setCommitsTotal] = useState(0);
   const [commitPage, setCommitPage] = useState(1);
   const [commitPageSize, setCommitPageSize] = useState(50);
-  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [graphRows, setGraphRows] = useState([]);
+  const [graphLoading, setGraphLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
@@ -63,6 +64,7 @@ function GitVisualizer() {
   const [stageLoading, setStageLoading] = useState(false);
   const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
   const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
     (async () => {
@@ -81,6 +83,7 @@ function GitVisualizer() {
       if (s.activeTab) setActiveTab(s.activeTab);
       if (typeof s.sidebarWidth === 'number') setSidebarWidth(s.sidebarWidth);
       if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
+      if (s.theme) setTheme(s.theme);
     }).catch(() => {});
   }, []);
 
@@ -93,6 +96,8 @@ function GitVisualizer() {
 
   useEffect(() => { queueSaveUiState({ activeTab }); }, [activeTab, queueSaveUiState]);
   useEffect(() => { queueSaveUiState({ sidebarWidth }); }, [sidebarWidth, queueSaveUiState]);
+  useEffect(() => { queueSaveUiState({ theme }); }, [theme, queueSaveUiState]);
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
   const handleLoadDrives = async () => {
     try {
@@ -163,29 +168,29 @@ function GitVisualizer() {
 
   const handleCheckGit = () => handleDoCheckGit(currentPath);
 
-  const handleLoadCommits = async (branch, page = 1, pageSize = commitPageSize) => {
+  const handleLoadGraph = async (page = 1, pageSize = commitPageSize, branch) => {
+    setGraphLoading(true);
     try {
-      setCommitsLoading(true);
-      const data = await fetchCommits(currentPath, branch, page, pageSize);
-      setCommits(data.commits);
-      setCommitsTotal(data.totalCount);
+      const data = await fetchCommitGraph(currentPath, page, pageSize, branch);
+      setGraphRows(data.rows);
+      setCommitsTotal(data.total);
       setCommitPage(page);
     } catch (_) {
-      setCommits([]);
+      setGraphRows([]);
       setCommitsTotal(0);
     } finally {
-      setCommitsLoading(false);
+      setGraphLoading(false);
     }
   };
 
   const totalCommitPages = commitPageSize > 0 ? Math.ceil(commitsTotal / commitPageSize) || 1 : 1;
 
   const handlePrevPage = () => {
-    if (commitPage > 1) handleLoadCommits(selectedBranch, commitPage - 1);
+    if (commitPage > 1) handleLoadGraph(commitPage - 1);
   };
 
   const handleNextPage = () => {
-    if (commitPage < totalCommitPages) handleLoadCommits(selectedBranch, commitPage + 1);
+    if (commitPage < totalCommitPages) handleLoadGraph(commitPage + 1);
   };
 
   const [commitPageInput, setCommitPageInput] = useState('');
@@ -193,7 +198,7 @@ function GitVisualizer() {
   const handleGoToPage = () => {
     const p = parseInt(commitPageInput, 10);
     if (p >= 1 && p <= totalCommitPages) {
-      handleLoadCommits(selectedBranch, p);
+      handleLoadGraph(p);
       setCommitPageInput('');
     }
   };
@@ -201,18 +206,21 @@ function GitVisualizer() {
   const handlePageSizeChange = (e) => {
     const v = parseInt(e.target.value, 10);
     setCommitPageSize(v);
-    handleLoadCommits(selectedBranch, 1, v);
+    handleLoadGraph(1, v);
   };
 
   const handleBranchSelect = (branch) => {
     setSelectedBranch(branch);
-    handleLoadCommits(branch, 1);
   };
 
   const handleBranchDoubleClick = (branch) => {
     setSelectedBranch(branch);
-    handleLoadCommits(branch, 1);
     setActiveTab('commits');
+  };
+
+  const handleShowAllBranches = () => {
+    setSelectedBranch(null);
+    handleLoadGraph(1, commitPageSize, undefined);
   };
 
   const handleReselect = () => setView('select');
@@ -228,7 +236,6 @@ function GitVisualizer() {
   };
 
   const handleCheckoutBranch = async (branch) => {
-    setCommitsLoading(true);
     try {
       await checkoutBranch(currentPath, branch);
       const data = await handleRefreshGitInfo();
@@ -240,8 +247,6 @@ function GitVisualizer() {
       } else {
         Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: msg });
       }
-    } finally {
-      setCommitsLoading(false);
     }
   };
 
@@ -277,16 +282,13 @@ function GitVisualizer() {
       cancelButtonText: t('common.cancel')
     });
     if (!isConfirmed) return;
-    setCommitsLoading(true);
     try {
       await mergeBranch(currentPath, sourceBranch);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadCommits(data.currentBranch, 1);
+      await handleLoadGraph();
     } catch (err) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.mergeFail'), text: err.response?.data?.error || err.message });
-    } finally {
-      setCommitsLoading(false);
     }
   };
 
@@ -434,16 +436,13 @@ function GitVisualizer() {
       cancelButtonText: t('common.cancel')
     });
     if (!isConfirmed) return;
-    setCommitsLoading(true);
     try {
       await rebaseBranch(currentPath, gitInfo.currentBranch, targetBranch);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadCommits(data.currentBranch, 1);
+      await handleLoadGraph();
     } catch (err) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.rebaseFail'), text: err.response?.data?.error || err.message });
-    } finally {
-      setCommitsLoading(false);
     }
   };
 
@@ -636,7 +635,7 @@ function GitVisualizer() {
       setLocalFileDiff([]);
       setSelectedLocalFile(null);
       await handleLoadLocalStatus();
-      if (selectedBranch) await handleLoadCommits(selectedBranch);
+      await handleLoadGraph(1);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
     } catch (err) {
@@ -677,7 +676,7 @@ function GitVisualizer() {
       setLocalFileDiff([]);
       setSelectedLocalFile(null);
       await handleLoadLocalStatus();
-      if (selectedBranch) await handleLoadCommits(selectedBranch);
+      await handleLoadGraph(1);
       setSelectedBranch(branch);
     } catch (err) {
       Swal.fire({ icon: 'error', title: t('local.commitPushFail'), text: err.response?.data?.error || err.message });
@@ -690,6 +689,26 @@ function GitVisualizer() {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
     saveUiState({ lang: next }).catch(() => {});
+  };
+
+  const handleSwitchTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+  };
+
+  const LANE_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+
+  const renderGraph = (graphStr) => {
+    if (!graphStr) return null;
+    return [...graphStr].map((ch, i) => {
+      const color = LANE_COLORS[i % LANE_COLORS.length];
+      if (ch === ' ') return <span key={i} className="graph-char graph-char--space" />;
+      if (ch === '*') return <span key={i} className="graph-char graph-char--node" style={{ '--gc': color }}>●</span>;
+      if (ch === '|') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>│</span>;
+      if (ch === '/') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>╱</span>;
+      if (ch === '\\') return <span key={i} className="graph-char graph-char--line" style={{ '--gc': color }}>╲</span>;
+      return <span key={i} className="graph-char" style={{ '--gc': color }}>{ch}</span>;
+    });
   };
 
   const isSidebarCollapsed = sidebarWidth < 20;
@@ -869,13 +888,13 @@ function GitVisualizer() {
   };
 
   useEffect(() => {
-    if (view === 'analyze' && activeTab === 'commits' && selectedBranch) {
-      handleLoadCommits(selectedBranch);
+    if (view === 'analyze' && activeTab === 'commits') {
+      handleLoadGraph(1, commitPageSize, selectedBranch || undefined);
     }
     if (view === 'analyze' && activeTab === 'local') {
       handleLoadLocalStatus();
     }
-  }, [view, activeTab]);
+  }, [view, activeTab, selectedBranch]);
 
   if (initialLoading) {
     return <div className="git-visualizer"><p className="initial-loading">{t('common.restoring')}</p></div>;
@@ -895,6 +914,7 @@ function GitVisualizer() {
             )}
           </div>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
+          <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
         </div>
         <div className="analyze-body">
           <div className={`analyze-sidebar${isSidebarCollapsed ? ' analyze-sidebar--collapsed' : ''}`} ref={sidebarRef} style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}>
@@ -926,63 +946,76 @@ function GitVisualizer() {
             {activeTab === 'commits' && (
               <div className="commit-pagination-box">
                 <div className="commit-header">
-                  {selectedBranch && <span className="commit-header-label">{selectedBranch}</span>}
+                  {selectedBranch && <span className="commit-header-label commit-header-label--clickable" onClick={handleShowAllBranches} title={t('commit.showAll')}>{selectedBranch}</span>}
                   <span className="commit-header-count">{t('commit.count', { count: commitsTotal })}</span>
                 </div>
                 <div className="commit-list">
-                  {commitsLoading ? (
+                  {graphLoading ? (
                     <p className="commit-status">{t('commit.loading')}</p>
-                  ) : commits.length === 0 ? (
+                  ) : graphRows.length === 0 ? (
                     <p className="commit-status">{t('commit.empty')}</p>
                   ) : (
-                    commits.map((c) => (
-                      <div key={c.hash} className="commit-item">
-                        <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
-                          <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
-                          <div className="commit-meta">
-                            <span className="commit-hash">{c.hash.slice(0, 7)}</span>
-                            <span className="commit-author">{c.author}</span>
-                            <span className="commit-date">{c.date?.split('T')[0] || c.date}</span>
+                    graphRows.map((row, idx) => {
+                      if (!row.commit) {
+                        return (
+                          <div key={`g-${idx}`} className="commit-item commit-item--connector">
+                            <div className="commit-graph-col">{renderGraph(row.graph)}</div>
                           </div>
-                        </div>
-                        {expandedCommit === c.hash && (
-                          <div className="commit-files">
-                            {commitFilesLoading ? (
-                              <p className="commit-files-loading">{t('common.loading')}</p>
-                            ) : commitFiles && commitFiles.length > 0 ? (
-                              commitFiles.map((f, i) => (
-                                <div key={i} className="commit-file-item">
-                                  <div className="commit-file-header" onClick={() => handleToggleFile(c.hash, f.filePath)}>
-                                    <span className={`commit-file-status commit-file-status--${f.status.toLowerCase()}`}>
-                                      {f.status === 'A' ? t('commit.fileAdded') : f.status === 'D' ? t('commit.fileDeleted') : t('commit.fileModified')}
-                                    </span>
-                                    <span className="commit-file-path">{f.filePath}</span>
-                                    <span className="commit-file-toggle">{expandedFile === f.filePath ? '▼' : '▶'}</span>
+                        );
+                      }
+                      const c = row.commit;
+                      return (
+                        <div key={c.hash} className="commit-item">
+                          <div className="commit-item-inner">
+                            <div className="commit-graph-col">{renderGraph(row.graph)}</div>
+                            <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
+                              <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
+                              <div className="commit-meta">
+                                <span className="commit-hash">{c.hash.slice(0, 7)}</span>
+                                <span className="commit-author">{c.author}</span>
+                                <span className="commit-date">{c.date?.split('T')[0] || c.date}</span>
+                              </div>
+                            </div>
+                          </div>
+                          {expandedCommit === c.hash && (
+                            <div className="commit-files">
+                              {commitFilesLoading ? (
+                                <p className="commit-files-loading">{t('common.loading')}</p>
+                              ) : commitFiles && commitFiles.length > 0 ? (
+                                commitFiles.map((f, i) => (
+                                  <div key={i} className="commit-file-item">
+                                    <div className="commit-file-header" onClick={() => handleToggleFile(c.hash, f.filePath)}>
+                                      <span className={`commit-file-status commit-file-status--${f.status.toLowerCase()}`}>
+                                        {f.status === 'A' ? t('commit.fileAdded') : f.status === 'D' ? t('commit.fileDeleted') : t('commit.fileModified')}
+                                      </span>
+                                      <span className="commit-file-path">{f.filePath}</span>
+                                      <span className="commit-file-toggle">{expandedFile === f.filePath ? '▼' : '▶'}</span>
+                                    </div>
+                                    {expandedFile === f.filePath && (
+                                      <pre className="commit-file-diff">
+                                        {fileDiffLoading ? (
+                                          <p className="commit-files-loading">{t('common.loading')}</p>
+                                        ) : (
+                                          fileDiff.split('\n').map((line, li) => {
+                                            let cls = '';
+                                            if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
+                                            else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-remove';
+                                            else if (line.startsWith('@@')) cls = 'diff-hunk';
+                                            return <div key={li} className={cls}>{line}</div>;
+                                          })
+                                        )}
+                                      </pre>
+                                    )}
                                   </div>
-                                  {expandedFile === f.filePath && (
-                                    <pre className="commit-file-diff">
-                                      {fileDiffLoading ? (
-                                        <p className="commit-files-loading">{t('common.loading')}</p>
-                                      ) : (
-                                        fileDiff.split('\n').map((line, li) => {
-                                          let cls = '';
-                                          if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
-                                          else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-remove';
-                                          else if (line.startsWith('@@')) cls = 'diff-hunk';
-                                          return <div key={li} className={cls}>{line}</div>;
-                                        })
-                                      )}
-                                    </pre>
-                                  )}
-                                </div>
-                              ))
-                            ) : (
-                              <p className="commit-files-loading">{t('commit.filesEmpty')}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))
+                                ))
+                              ) : (
+                                <p className="commit-files-loading">{t('commit.filesEmpty')}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
                 <div className="commit-pagination">
@@ -1255,6 +1288,7 @@ function GitVisualizer() {
       <div className="select-header">
         <h1>{t('select.title')}</h1>
         <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
+        <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
       </div>
 
       <div className="path-input-row">
