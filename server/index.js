@@ -148,7 +148,20 @@ app.post('/api/checkout', async (req, res) => {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    await git.checkout(branch);
+
+    if (branch.includes('/')) {
+      const localName = branch.split('/').slice(1).join('/');
+      const branches = await git.branchLocal();
+      if (branches.all.includes(localName)) {
+        await git.checkout(localName);
+        await git.pull();
+      } else {
+        await git.raw(['checkout', '--track', branch]);
+      }
+    } else {
+      await git.checkout(branch);
+    }
+
     res.json({ ok: true, branch });
   } catch (error) {
     console.error('迁出分支时出错:', error);
