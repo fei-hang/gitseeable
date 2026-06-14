@@ -10,12 +10,8 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
         configure(proxy) {
-          proxy.on('error', (err, _req, res) => {
-            if (err.code === 'ECONNREFUSED') return
-            if (res && !res.headersSent) {
-              res.writeHead(502, { 'Content-Type': 'text/plain' })
-              res.end()
-            }
+          proxy.on('error', (_err, _req, _res) => {
+            // suppress — client-side retry handles reconnection
           })
         },
       }
