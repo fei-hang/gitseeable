@@ -1049,16 +1049,33 @@ function GitVisualizer() {
 
   useEffect(() => {
     if (view !== 'analyze' || !currentPath) return;
-    const es = new EventSource(`${API_BASE_URL}/api/file-events?dirPath=${encodeURIComponent(currentPath)}`);
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.type === 'file-change' && activeTabRef.current === 'local') {
-          loadLocalRef.current();
-        }
-      } catch (_) {}
+
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout>;
+
+    function connect() {
+      es?.close();
+      es = new EventSource(`${API_BASE_URL}/api/file-events?dirPath=${encodeURIComponent(currentPath)}`);
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'file-change' && activeTabRef.current === 'local') {
+            loadLocalRef.current();
+          }
+        } catch (_) {}
+      };
+      es.onerror = () => {
+        es?.close();
+        retryTimer = setTimeout(connect, 2000);
+      };
+    }
+
+    connect();
+
+    return () => {
+      es?.close();
+      clearTimeout(retryTimer);
     };
-    return () => { es.close(); };
   }, [view, currentPath]);
 
   if (initialLoading) {
