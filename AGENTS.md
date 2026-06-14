@@ -37,6 +37,17 @@ Node 20.19.3 required. Use `nvm use 20.19.3` before any npm operations.
 | `cd server && npm run build` | Server TypeScript compilation |
 | `cd server && npm run dev` | Server dev (tsx watch) |
 
+## Reference files
+
+`agentsref/` contains categorized reference material. Read the relevant file when the task involves that area:
+
+| File | Contents |
+|---|---|
+| `agentsref/features.md` | Feature list, screenshots, behavior specs for every feature |
+| `agentsref/api.md` | All Express API endpoints, request/response format |
+| `agentsref/conventions.md` | Naming, CSS, component, i18n, linting conventions |
+| `agentsref/dev-quirks.md` | Known quirks, edge cases, platform-specific notes |
+
 ## Structure
 
 ```
