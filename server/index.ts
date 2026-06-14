@@ -1,8 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const simpleGit = require('simple-git');
-const path = require('path');
-const fs = require('fs');
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import simpleGit from 'simple-git';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,12 +10,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-function getGit(dirPath) {
+function getGit(dirPath: string) {
   return simpleGit(dirPath);
 }
 
 // 检查目录是否为Git仓库并获取分支信息
-app.post('/api/check-git', async (req, res) => {
+app.post('/api/check-git', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
 
@@ -49,7 +49,13 @@ app.post('/api/check-git', async (req, res) => {
     ]);
     const remotePrefix = remoteNames.length > 0 ? `${remoteNames[0].name}/` : 'origin/';
 
-    const localWithStatus = await Promise.all(localBranches.all.map(async (name) => {
+    interface BranchWithStatus {
+      name: string;
+      ahead: number;
+      behind: number;
+    }
+
+    const localWithStatus: BranchWithStatus[] = await Promise.all(localBranches.all.map(async (name: string) => {
       let ahead = 0, behind = 0;
       try {
         const upstream = remotePrefix + name;
@@ -72,16 +78,16 @@ app.post('/api/check-git', async (req, res) => {
       message: 'Git仓库分析完成'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('分析Git仓库时出错:', error);
     res.status(500).json({ error: '分析Git仓库时出错: ' + error.message });
   }
 });
 
 // 获取所有盘符（Windows）
-app.get('/api/drives', (req, res) => {
+app.get('/api/drives', (req: Request, res: Response) => {
   try {
-    const drives = [];
+    const drives: { name: string; path: string }[] = [];
     for (let i = 65; i <= 90; i++) {
       const letter = String.fromCharCode(i);
       const drivePath = `${letter}:\\`;
@@ -92,14 +98,14 @@ app.get('/api/drives', (req, res) => {
       } catch (e) { /* ignore */ }
     }
     res.json({ drives });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取盘符时出错:', error);
     res.status(500).json({ error: '获取盘符时出错' });
   }
 });
 
 // 获取目录列表
-app.post('/api/list-directory', (req, res) => {
+app.post('/api/list-directory', (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     const targetDir = dirPath || '';
@@ -134,14 +140,14 @@ app.post('/api/list-directory', (req, res) => {
       directories: directories.slice(0, 200)
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('列出目录时出错:', error);
     res.status(500).json({ error: '列出目录时出错: ' + error.message });
   }
 });
 
 // 迁出指定分支
-app.post('/api/checkout', async (req, res) => {
+app.post('/api/checkout', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
     if (!dirPath || !branch) {
@@ -163,14 +169,22 @@ app.post('/api/checkout', async (req, res) => {
     }
 
     res.json({ ok: true, branch });
-  } catch (error) {
+  } catch (error: any) {
     console.error('迁出分支时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+interface CommitInfo {
+  hash: string;
+  author: string;
+  email: string;
+  date: string;
+  message: string;
+}
+
 // 获取commit日志（分页）
-app.post('/api/commits', async (req, res) => {
+app.post('/api/commits', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch, page = 1, pageSize = 50 } = req.body;
     if (!dirPath || !branch) {
@@ -185,19 +199,31 @@ app.post('/api/commits', async (req, res) => {
       git.raw(logArgs),
       git.raw(['rev-list', '--count', branch])
     ]);
-    const commits = raw.trim().split('\n').filter(Boolean).map(line => {
+    const commits: CommitInfo[] = raw.trim().split('\n').filter(Boolean).map(line => {
       const [hash, author, email, date, ...msgParts] = line.split('||');
       return { hash, author, email, date, message: msgParts.join('||') };
     });
     res.json({ branch, commits, totalCount: parseInt(totalRaw.trim(), 10) || 0, page, pageSize });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取commit日志时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+interface GraphRow {
+  graph: string;
+  commit: {
+    hash: string;
+    parents: string;
+    message: string;
+    author: string;
+    date: string;
+    refs: string;
+  } | null;
+}
+
 // 获取提交历史分支图
-app.post('/api/commit-graph', async (req, res) => {
+app.post('/api/commit-graph', async (req: Request, res: Response) => {
   try {
     const { dirPath, page = 1, pageSize = 50, branch } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
@@ -220,7 +246,7 @@ app.post('/api/commit-graph', async (req, res) => {
     }
 
     const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(Boolean);
-    const rows = [];
+    const rows: GraphRow[] = [];
     for (const line of lines) {
       const sepIdx = line.indexOf(graphSep);
       if (sepIdx === -1) {
@@ -243,7 +269,7 @@ app.post('/api/commit-graph', async (req, res) => {
       });
     }
     // Insert visual connector rows between consecutive commits on the same lane
-    const finalRows = [];
+    const finalRows: GraphRow[] = [];
     for (let i = 0; i < rows.length; i++) {
       if (i > 0 && rows[i].commit && rows[i - 1].commit) {
         const currStar = rows[i].graph.indexOf('*');
@@ -258,14 +284,14 @@ app.post('/api/commit-graph', async (req, res) => {
       finalRows.push(rows[i]);
     }
     res.json({ rows: finalRows, total, page, pageSize });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取提交图时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 从指定源分支创建新分支
-app.post('/api/create-branch', async (req, res) => {
+app.post('/api/create-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, branchName, sourceBranch } = req.body;
     if (!dirPath || !branchName) {
@@ -276,14 +302,14 @@ app.post('/api/create-branch', async (req, res) => {
     if (sourceBranch) args.push(sourceBranch);
     await git.raw(args);
     res.json({ ok: true, branch: branchName });
-  } catch (error) {
+  } catch (error: any) {
     console.error('创建分支时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 合并分支到当前分支
-app.post('/api/merge-branch', async (req, res) => {
+app.post('/api/merge-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, sourceBranch } = req.body;
     if (!dirPath || !sourceBranch) {
@@ -297,7 +323,7 @@ app.post('/api/merge-branch', async (req, res) => {
       return res.json({ conflict: true, files, type: 'merge' });
     }
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('合并分支时出错:', error);
     const git = getGit(req.body.dirPath);
     try {
@@ -312,7 +338,7 @@ app.post('/api/merge-branch', async (req, res) => {
 });
 
 // 重命名分支
-app.post('/api/rename-branch', async (req, res) => {
+app.post('/api/rename-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, oldName, newName } = req.body;
     if (!dirPath || !oldName || !newName) {
@@ -321,14 +347,14 @@ app.post('/api/rename-branch', async (req, res) => {
     const git = getGit(dirPath);
     await git.branch(['-m', oldName, newName]);
     res.json({ ok: true, branch: newName });
-  } catch (error) {
+  } catch (error: any) {
     console.error('重命名分支时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 删除分支
-app.post('/api/delete-branch', async (req, res) => {
+app.post('/api/delete-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
     if (!dirPath || !branch) {
@@ -337,14 +363,21 @@ app.post('/api/delete-branch', async (req, res) => {
     const git = getGit(dirPath);
     await git.branch(['-d', branch]);
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('删除分支时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+interface PendingCommit {
+  hash: string;
+  message: string;
+  date: string;
+  author: string;
+}
+
 // 获取待推送的提交列表
-app.post('/api/pending-commits', async (req, res) => {
+app.post('/api/pending-commits', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
     if (!dirPath || !branch) {
@@ -352,14 +385,15 @@ app.post('/api/pending-commits', async (req, res) => {
     }
     const git = getGit(dirPath);
     const log = await git.log([`origin/${branch}..${branch}`]);
-    res.json({ commits: log.all.map(c => ({ hash: c.hash, message: c.message, date: c.date, author: c.author_name })) });
+    const commits: PendingCommit[] = log.all.map(c => ({ hash: c.hash, message: c.message, date: c.date, author: c.author_name }));
+    res.json({ commits });
   } catch (error) {
     res.json({ commits: [] });
   }
 });
 
 // 推送分支
-app.post('/api/push', async (req, res) => {
+app.post('/api/push', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
     if (!dirPath || !branch) {
@@ -368,20 +402,23 @@ app.post('/api/push', async (req, res) => {
     const git = getGit(dirPath);
     await git.push('origin', branch);
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('推送分支时出错:', error);
+    const remoteDirPath = req.body.dirPath;
     let remoteUrl = '';
-    try {
-      const remotes = await getGit(dirPath).getRemotes(true);
-      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
-    } catch (_) {}
+    if (remoteDirPath) {
+      try {
+        const remotes = await getGit(remoteDirPath).getRemotes(true);
+        if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+      } catch (_) {}
+    }
     const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
     res.status(500).json({ error: `${prefix}${error.message}` });
   }
 });
 
 // 拉取更新（fetch --all）
-app.post('/api/fetch', async (req, res) => {
+app.post('/api/fetch', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     if (!dirPath) {
@@ -390,20 +427,28 @@ app.post('/api/fetch', async (req, res) => {
     const git = getGit(dirPath);
     await git.fetch(['--all']);
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('拉取更新时出错:', error);
+    const remoteDirPath = req.body.dirPath;
     let remoteUrl = '';
-    try {
-      const remotes = await getGit(dirPath).getRemotes(true);
-      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
-    } catch (_) {}
+    if (remoteDirPath) {
+      try {
+        const remotes = await getGit(remoteDirPath).getRemotes(true);
+        if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+      } catch (_) {}
+    }
     const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
     res.status(500).json({ error: `${prefix}${error.message}` });
   }
 });
 
+interface SimpleCommit {
+  hash: string;
+  message: string;
+}
+
 // 比较两个分支的commit差异（双向）
-app.post('/api/compare-branches', async (req, res) => {
+app.post('/api/compare-branches', async (req: Request, res: Response) => {
   try {
     const { dirPath, baseBranch, compareBranch } = req.body;
     if (!dirPath || !baseBranch || !compareBranch) {
@@ -416,21 +461,21 @@ app.post('/api/compare-branches', async (req, res) => {
       git.raw(['log', `${baseBranch}..${compareBranch}`, '--oneline', '--max-count=50']),
       git.raw(['log', `${compareBranch}..${baseBranch}`, '--oneline', '--max-count=50'])
     ]);
-    const parse = (raw) => raw.trim().split('\n').filter(Boolean).map(line => {
+    const parse = (raw: string): SimpleCommit[] => raw.trim().split('\n').filter(Boolean).map(line => {
       const [hash, ...msgParts] = line.split(' ');
       return { hash, message: msgParts.join(' ') };
     });
     const compareCount = parseInt(compareCountRaw.trim(), 10) || 0;
     const baseCount = parseInt(baseCountRaw.trim(), 10) || 0;
     res.json({ compareAhead: parse(compareAheadRaw), compareAheadTotal: compareCount, baseAhead: parse(baseAheadRaw), baseAheadTotal: baseCount });
-  } catch (error) {
+  } catch (error: any) {
     console.error('比较分支时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 将当前分支变基到目标分支
-app.post('/api/rebase-branch', async (req, res) => {
+app.post('/api/rebase-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, targetBranch } = req.body;
     if (!dirPath || !targetBranch) {
@@ -439,7 +484,7 @@ app.post('/api/rebase-branch', async (req, res) => {
     const git = getGit(dirPath);
     await git.raw(['rebase', targetBranch]);
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('变基分支时出错:', error);
     const git = getGit(req.body.dirPath);
     try {
@@ -454,15 +499,15 @@ app.post('/api/rebase-branch', async (req, res) => {
 });
 
 // 获取冲突文件列表
-app.post('/api/conflict-files', async (req, res) => {
+app.post('/api/conflict-files', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
     const git = getGit(dirPath);
     const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
     const files = status.split('\n').filter(Boolean);
-    let type = null;
-    let theirsBranch = null;
+    let type: string | null = null;
+    let theirsBranch: string | null = null;
     const gitDir = path.join(dirPath, '.git');
     if (files.length > 0) {
       try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); type = 'merge'; } catch (_) {}
@@ -473,7 +518,6 @@ app.post('/api/conflict-files', async (req, res) => {
         try { await fs.promises.access(path.join(gitDir, 'rebase-apply')); type = 'rebase'; } catch (_) {}
       }
       if (!type) type = 'merge';
-      // try to get theirs branch name
       try {
         if (type === 'merge') {
           const mergeMsg = await fs.promises.readFile(path.join(gitDir, 'MERGE_MSG'), 'utf-8');
@@ -486,13 +530,20 @@ app.post('/api/conflict-files', async (req, res) => {
       } catch (_) {}
     }
     res.json({ files, type, theirsBranch });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
+interface HunkInfo {
+  ourStart: number;
+  ourCount: number;
+  theirStart: number;
+  theirCount: number;
+}
+
 // 获取冲突文件的 our/theirs 内容
-app.post('/api/conflict-file-content', async (req, res) => {
+app.post('/api/conflict-file-content', async (req: Request, res: Response) => {
   try {
     const { dirPath, filePath } = req.body;
     if (!dirPath || !filePath) return res.status(400).json({ error: '缺少参数' });
@@ -500,12 +551,11 @@ app.post('/api/conflict-file-content', async (req, res) => {
     let ours = '', theirs = '';
     try { ours = await git.raw(['show', ':2:' + filePath]); } catch (_) { ours = ''; }
     try { theirs = await git.raw(['show', ':3:' + filePath]); } catch (_) { theirs = ''; }
-    // 获取 hunk 信息（差异块的行号范围）
-    const hunks = [];
+    const hunks: HunkInfo[] = [];
     try {
       const diff = await git.raw(['diff', '--unified=0', `:2:${filePath}`, `:3:${filePath}`]);
       const hunkRegex = /@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/g;
-      let m;
+      let m: RegExpExecArray | null;
       while ((m = hunkRegex.exec(diff)) !== null) {
         hunks.push({
           ourStart: parseInt(m[1]),
@@ -516,13 +566,13 @@ app.post('/api/conflict-file-content', async (req, res) => {
       }
     } catch (_) {}
     res.json({ ours, theirs, hunks });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 中止合并或变基
-app.post('/api/abort-merge', async (req, res) => {
+app.post('/api/abort-merge', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
@@ -533,13 +583,13 @@ app.post('/api/abort-merge', async (req, res) => {
       await git.raw(['rebase', '--abort']);
     }
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 解决冲突文件（写入内容并 git add）
-app.post('/api/resolve-conflict-file', async (req, res) => {
+app.post('/api/resolve-conflict-file', async (req: Request, res: Response) => {
   try {
     const { dirPath, filePath, content } = req.body;
     if (!dirPath || !filePath || content === undefined) {
@@ -550,13 +600,13 @@ app.post('/api/resolve-conflict-file', async (req, res) => {
     await fs.promises.writeFile(fullPath, content, 'utf-8');
     await git.raw(['add', filePath]);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 继续合并/变基（所有冲突解决后）
-app.post('/api/continue-merge', async (req, res) => {
+app.post('/api/continue-merge', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
@@ -570,13 +620,13 @@ app.post('/api/continue-merge', async (req, res) => {
       await git.env('GIT_EDITOR', 'true').env('GIT_SEQUENCE_EDITOR', 'true').raw(['rebase', '--continue']);
     }
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 获取单个commit的diff
-app.post('/api/commit-diff', async (req, res) => {
+app.post('/api/commit-diff', async (req: Request, res: Response) => {
   try {
     const { dirPath, commitHash } = req.body;
     if (!dirPath || !commitHash) {
@@ -589,14 +639,19 @@ app.post('/api/commit-diff', async (req, res) => {
     const [headerHash, headerMsg, headerAuthor, headerDate] = header.split('||');
     const content = lines.slice(1).join('\n');
     res.json({ commitHash: headerHash, message: headerMsg, author: headerAuthor, date: headerDate, diff: content });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取diff时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+interface FileEntry {
+  status: string;
+  filePath: string;
+}
+
 // 获取某次 commit 修改的文件列表
-app.post('/api/commit-files', async (req, res) => {
+app.post('/api/commit-files', async (req: Request, res: Response) => {
   try {
     const { dirPath, commitHash } = req.body;
     if (!dirPath || !commitHash) {
@@ -604,19 +659,19 @@ app.post('/api/commit-files', async (req, res) => {
     }
     const git = getGit(dirPath);
     const raw = await git.raw(['diff-tree', '--no-commit-id', '-r', '--name-status', commitHash]);
-    const files = raw.trim().split('\n').filter(Boolean).map(line => {
+    const files: FileEntry[] = raw.trim().split('\n').filter(Boolean).map(line => {
       const [status, ...fileParts] = line.split('\t');
       return { status, filePath: fileParts.join('\t') };
     });
     res.json({ commitHash, files });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取commit文件列表时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 获取某次 commit 中某个文件的 diff
-app.post('/api/commit-file-diff', async (req, res) => {
+app.post('/api/commit-file-diff', async (req: Request, res: Response) => {
   try {
     const { dirPath, commitHash, filePath } = req.body;
     if (!dirPath || !commitHash || !filePath) {
@@ -630,14 +685,23 @@ app.post('/api/commit-file-diff', async (req, res) => {
     );
     const diff = diffLines.join('\n');
     res.json({ commitHash, filePath, diff });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取文件diff时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-function parseDiff(diffOutput) {
-  const rows = [];
+interface DiffRow {
+  oldLine: number | null;
+  oldContent: string | null;
+  oldType: string | null;
+  newLine: number | null;
+  newContent: string | null;
+  newType: string | null;
+}
+
+function parseDiff(diffOutput: string): DiffRow[] {
+  const rows: DiffRow[] = [];
   const lines = diffOutput.split('\n');
   let oldLineNum = 0;
   let newLineNum = 0;
@@ -667,15 +731,20 @@ function parseDiff(diffOutput) {
   return rows;
 }
 
+interface StatusEntry {
+  path: string;
+  status: string;
+}
+
 // 获取本地修改状态
-app.post('/api/local-status', async (req, res) => {
+app.post('/api/local-status', async (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
     const git = getGit(dirPath);
     const raw = await git.raw(['status', '--porcelain']);
-    const staged = [];
-    const unstaged = [];
+    const staged: StatusEntry[] = [];
+    const unstaged: StatusEntry[] = [];
     const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.length >= 3);
     for (const line of lines) {
       const idx = line[0];
@@ -693,14 +762,14 @@ app.post('/api/local-status', async (req, res) => {
       }
     }
     res.json({ staged, unstaged });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取本地状态时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 获取本地文件 diff
-app.post('/api/local-file-diff', async (req, res) => {
+app.post('/api/local-file-diff', async (req: Request, res: Response) => {
   try {
     const { dirPath, filePath, type } = req.body;
     if (!dirPath || !filePath || !type) {
@@ -713,21 +782,21 @@ app.post('/api/local-file-diff', async (req, res) => {
     const diffOutput = await git.raw(args);
     const rows = parseDiff(diffOutput);
     res.json({ filePath, type, rows });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取文件diff时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 回退(restore)选中的未暂存文件
-app.post('/api/local-restore-file', async (req, res) => {
+app.post('/api/local-restore-file', async (req: Request, res: Response) => {
   try {
     const { dirPath, selectedFiles } = req.body;
     if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
       return res.status(400).json({ error: '缺少参数或未选择文件' });
     }
     const git = getGit(dirPath);
-    const failed = [];
+    const failed: string[] = [];
     for (const file of selectedFiles) {
       try {
         await git.checkout(['--', file]);
@@ -736,14 +805,14 @@ app.post('/api/local-restore-file', async (req, res) => {
       }
     }
     res.json({ ok: true, failed });
-  } catch (error) {
+  } catch (error: any) {
     console.error('回退文件时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 暂存选中的未暂存文件
-app.post('/api/local-stage-files', async (req, res) => {
+app.post('/api/local-stage-files', async (req: Request, res: Response) => {
   try {
     const { dirPath, selectedFiles } = req.body;
     if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
@@ -754,14 +823,14 @@ app.post('/api/local-stage-files', async (req, res) => {
       await git.raw(['add', file]);
     }
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('暂存文件时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 取消暂存选中的已暂存文件
-app.post('/api/local-unstage-files', async (req, res) => {
+app.post('/api/local-unstage-files', async (req: Request, res: Response) => {
   try {
     const { dirPath, selectedFiles } = req.body;
     if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
@@ -772,14 +841,14 @@ app.post('/api/local-unstage-files', async (req, res) => {
       await git.raw(['restore', '--staged', file]);
     }
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('取消暂存时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 本地提交（仅提交选中的文件）
-app.post('/api/local-commit', async (req, res) => {
+app.post('/api/local-commit', async (req: Request, res: Response) => {
   try {
     const { dirPath, message, selectedFiles } = req.body;
     if (!dirPath || !message) {
@@ -795,14 +864,14 @@ app.post('/api/local-commit', async (req, res) => {
     }
     await git.commit(message);
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('提交时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // 本地提交并推送（仅提交选中的文件）
-app.post('/api/local-commit-push', async (req, res) => {
+app.post('/api/local-commit-push', async (req: Request, res: Response) => {
   try {
     const { dirPath, message, selectedFiles } = req.body;
     if (!dirPath || !message) {
@@ -820,13 +889,16 @@ app.post('/api/local-commit-push', async (req, res) => {
     const branch = (await git.branchLocal()).current;
     await git.push('origin', branch);
     res.json({ ok: true, branch });
-  } catch (error) {
+  } catch (error: any) {
     console.error('提交并推送时出错:', error);
+    const remoteDirPath = req.body.dirPath;
     let remoteUrl = '';
-    try {
-      const remotes = await getGit(dirPath).getRemotes(true);
-      if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
-    } catch (_) {}
+    if (remoteDirPath) {
+      try {
+        const remotes = await getGit(remoteDirPath).getRemotes(true);
+        if (remotes.length > 0) remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch || '';
+      } catch (_) {}
+    }
     const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
     res.status(500).json({ error: `${prefix}${error.message}` });
   }
@@ -835,30 +907,30 @@ app.post('/api/local-commit-push', async (req, res) => {
 const DATA_FILE = path.join(__dirname, 'state.json');
 
 // 保存上次检查的路径
-app.post('/api/save-last-path', (req, res) => {
+app.post('/api/save-last-path', (req: Request, res: Response) => {
   try {
     const { dirPath } = req.body;
-    let data = {};
+    let data: Record<string, any> = {};
     try {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     } catch (_) { /* ignore */ }
     data.lastPath = dirPath;
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 读取上次检查的路径
-app.get('/api/last-path', (req, res) => {
+app.get('/api/last-path', (req: Request, res: Response) => {
   try {
-    let data = {};
+    let data: Record<string, any> = {};
     try {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     } catch (_) { /* ignore */ }
     res.json({ lastPath: data.lastPath || null });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -866,37 +938,41 @@ app.get('/api/last-path', (req, res) => {
 // 保存 UI 状态（刷新保持）
 const UI_DEFAULTS = { activeTab: 'commits', sidebarWidth: 260, lang: 'zh' };
 
-app.get('/api/ui-state', (req, res) => {
+app.get('/api/ui-state', (req: Request, res: Response) => {
   try {
-    let data = {};
+    let data: Record<string, any> = {};
     try {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     } catch (_) { /* ignore */ }
     res.json({ ...UI_DEFAULTS, ...data.uiState });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/ui-state', (req, res) => {
+app.post('/api/ui-state', (req: Request, res: Response) => {
   try {
-    let data = {};
+    let data: Record<string, any> = {};
     try {
       data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
     } catch (_) { /* ignore */ }
     data.uiState = { ...UI_DEFAULTS, ...data.uiState, ...req.body };
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
     res.json({ ok: true });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // SSE: 文件变更事件推送
-const fileEventWatchers = {};
+const fileEventWatchers: Record<string, {
+  watcher: fs.FSWatcher | null;
+  connections: Set<Response>;
+  timer: NodeJS.Timeout | null;
+}> = {};
 
-app.get('/api/file-events', (req, res) => {
-  const dirPath = req.query.dirPath;
+app.get('/api/file-events', (req: Request, res: Response) => {
+  const dirPath = req.query.dirPath as string;
   if (!dirPath) return res.status(400).end();
 
   res.writeHead(200, {
@@ -904,17 +980,17 @@ app.get('/api/file-events', (req, res) => {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
   });
-  req.socket.setTimeout(0);
-  req.socket.setNoDelay(true);
+  (req.socket as any).setTimeout(0);
+  (req.socket as any).setNoDelay(true);
 
   if (!fileEventWatchers[dirPath]) {
     fileEventWatchers[dirPath] = { watcher: null, connections: new Set(), timer: null };
     try {
       const watcher = fs.watch(dirPath, { recursive: true });
-      watcher.on('change', (eventType, filename) => {
+      watcher.on('change', (eventType: string, filename: string | null) => {
         const relPath = filename ? filename.replace(/\\/g, '/') : '';
         if (relPath.startsWith('.git')) return;
-        clearTimeout(fileEventWatchers[dirPath].timer);
+        clearTimeout(fileEventWatchers[dirPath].timer!);
         fileEventWatchers[dirPath].timer = setTimeout(() => {
           const msg = JSON.stringify({ type: 'file-change' });
           for (const conn of fileEventWatchers[dirPath].connections) {
@@ -941,13 +1017,13 @@ app.get('/api/file-events', (req, res) => {
     if (fileEventWatchers[dirPath]) {
       fileEventWatchers[dirPath].connections.delete(res);
       if (fileEventWatchers[dirPath].connections.size === 0) {
-        try { fileEventWatchers[dirPath].watcher.close(); } catch (_) {}
+        try { fileEventWatchers[dirPath].watcher!.close(); } catch (_) {}
         delete fileEventWatchers[dirPath];
       }
     }
   });
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), () => {
   console.log(`服务器启动成功`);
 });

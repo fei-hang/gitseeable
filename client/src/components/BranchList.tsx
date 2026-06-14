@@ -3,11 +3,27 @@ import { useTranslation } from 'react-i18next';
 import { MAX_VISIBLE_BRANCHES } from '../constants';
 import './BranchList.css';
 
-function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, onDoubleClick, onContextMenuOpen }) {
+interface BranchItem {
+  name: string;
+  ahead?: number;
+  behind?: number;
+}
+
+interface BranchListProps {
+  title: string;
+  branches: (string | BranchItem)[];
+  currentBranch: string;
+  selectedBranch: string | null;
+  onSelect: (branch: string) => void;
+  onDoubleClick?: (branch: string) => void;
+  onContextMenuOpen: (e: React.MouseEvent, branch: string) => void;
+}
+
+function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, onDoubleClick, onContextMenuOpen }: BranchListProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const getName = (b) => (typeof b === 'string' ? b : b.name);
+  const getName = (b: string | BranchItem): string => (typeof b === 'string' ? b : b.name);
 
   const sorted = [...branches].sort((a, b) => {
     const na = getName(a), nb = getName(b);
@@ -39,8 +55,8 @@ function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, 
             >
               <span className="branch-icon">{name === currentBranch ? '●' : '○'}</span>
               <span className="branch-name">{name}</span>
-              {ahead > 0 && <span className="branch-arrow branch-arrow--up" title={t('branch.ahead', { count: ahead })}>▲</span>}
-              {behind > 0 && <span className="branch-arrow branch-arrow--down" title={t('branch.behind', { count: behind })}>▼</span>}
+              {ahead !== undefined && ahead > 0 && <span className="branch-arrow branch-arrow--up" title={t('branch.ahead', { count: ahead })}>▲</span>}
+              {behind !== undefined && behind > 0 && <span className="branch-arrow branch-arrow--down" title={t('branch.behind', { count: behind })}>▼</span>}
             </div>
           );
         })}

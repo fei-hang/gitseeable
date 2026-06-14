@@ -26,8 +26,8 @@
 
 | 层 | 技术 |
 |---|---|
-| **前端** | React 19, Vite 5, Axios, i18next, SweetAlert2 |
-| **后端** | Express 5, simple-git |
+| **前端** | React 19, Vite 5, Axios, i18next, SweetAlert2, TypeScript |
+| **后端** | Express 5, simple-git, TypeScript |
 | **模块系统** | 前端 ESM，后端 CommonJS |
 
 ## 快速开始
@@ -59,14 +59,16 @@ npm run dev
 | `npm run dev` | 同时启动服务端和客户端 |
 | `npm run server` | 仅启动后端（端口 3001） |
 | `npm run client` | 仅启动前端（端口 3000） |
-| `cd client && npm run build` | 生产构建 |
+| `cd client && npm run build` | 客户端生产构建 |
 | `cd client && npm run lint` | 运行 ESLint |
+| `cd server && npm run dev` | 服务端开发模式 (tsx watch) |
+| `cd server && npm run build` | 编译服务端 TypeScript |
 
 ## AI 快速启动
 
 你可以把以下提示词分享给 AI 编程助手（Cursor、Claude Code 等），让它自动克隆并启动项目：
 
-> 克隆 https://github.com/fei-hang/gitseeable.git，然后用 `nvm use 20.19.3` 设置正确的 Node 版本，用 `npm install && cd client && npm install && cd ../server && npm install` 安装依赖。启动开发服务：在 Linux/macOS 上用 `node server/index.js &` 和 `npx vite &`，在 Windows 上用 `Start-Job -ScriptBlock { node server/index.js }` 和 `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }`。必须后台运行，不要阻塞终端。用 `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` 验证后端，然后打开 http://localhost:3000。
+> 克隆 https://github.com/fei-hang/gitseeable.git，然后用 `nvm use 20.19.3` 设置正确的 Node 版本，用 `npm install && cd client && npm install && cd ../server && npm install` 安装依赖。启动开发服务：在 Linux/macOS 上用 `npx tsx server/index.ts &` 和 `npx vite &`，在 Windows 上用 `Start-Job -ScriptBlock { npx tsx server/index.ts }` 和 `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }`。必须后台运行，不要阻塞终端。用 `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` 验证后端，然后打开 http://localhost:3000。
 
 ## 许可
 

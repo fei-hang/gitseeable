@@ -13,66 +13,128 @@ import {
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
   stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
-  fetchConflictFiles, fetchConflictFileContent, abortMerge, continueMerge
+  fetchConflictFiles, continueMerge
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
 import ConflictResolver from './components/ConflictResolver';
 import './GitVisualizer.css';
 
+interface GitInfo {
+  isGitRepo: boolean;
+  path: string;
+  currentBranch: string;
+  localBranches: { name: string; ahead: number; behind: number }[];
+  remoteBranches: string[];
+  message: string;
+}
+
+interface GraphCommit {
+  hash: string;
+  parents: string;
+  message: string;
+  author: string;
+  date: string;
+  refs: string;
+}
+
+interface GraphRow {
+  graph: string;
+  commit: GraphCommit | null;
+}
+
+interface LocalStatusEntry {
+  path: string;
+  status: string;
+}
+
+interface LocalStatus {
+  staged: LocalStatusEntry[];
+  unstaged: LocalStatusEntry[];
+}
+
+interface DiffRow {
+  oldLine: number | null;
+  oldContent: string | null;
+  oldType: string | null;
+  newLine: number | null;
+  newContent: string | null;
+  newType: string | null;
+}
+
+interface CompareData {
+  compareBranch: string;
+  baseBranch: string;
+  compareAhead: { hash: string; message: string }[];
+  compareAheadTotal: number;
+  baseAhead: { hash: string; message: string }[];
+  baseAheadTotal: number;
+}
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  items: { label: string; onClick: () => void; danger?: boolean }[];
+}
+
+interface CommitFileEntry {
+  status: string;
+  filePath: string;
+}
+
 function GitVisualizer() {
   const { t } = useTranslation();
-  const [view, setView] = useState('select');
+  const [view, setView] = useState<'select' | 'analyze'>('select');
   const [currentPath, setCurrentPath] = useState('');
-  const [parentPath, setParentPath] = useState(null);
-  const [directories, setDirectories] = useState([]);
-  const [drives, setDrives] = useState([]);
+  const [parentPath, setParentPath] = useState<string | null>(null);
+  const [directories, setDirectories] = useState<{ name: string; path: string }[]>([]);
+  const [drives, setDrives] = useState<{ name: string; path: string }[]>([]);
   const [showDrives, setShowDrives] = useState(true);
   const [inputPath, setInputPath] = useState('');
-  const [gitInfo, setGitInfo] = useState(null);
-  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [gitInfo, setGitInfo] = useState<GitInfo | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [commitsTotal, setCommitsTotal] = useState(0);
   const [commitPage, setCommitPage] = useState(1);
   const [commitPageSize, setCommitPageSize] = useState(50);
-  const [graphRows, setGraphRows] = useState([]);
+  const [graphRows, setGraphRows] = useState<GraphRow[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
-  const [contextMenu, setContextMenu] = useState(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [activeTab, setActiveTab] = useState('commits');
   const [sidebarWidth, setSidebarWidth] = useState(260);
-  const sidebarRef = useRef(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(260);
-  const [compareData, setCompareData] = useState(null);
-  const [selectedDiffCommit, setSelectedDiffCommit] = useState(null);
+  const [compareData, setCompareData] = useState<CompareData | null>(null);
+  const [selectedDiffCommit, setSelectedDiffCommit] = useState<string | null>(null);
   const [diffContent, setDiffContent] = useState('');
-  const [diffMeta, setDiffMeta] = useState(null);
+  const [diffMeta, setDiffMeta] = useState<{ hash: string; message: string; author: string; date: string } | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
-  const [expandedCommit, setExpandedCommit] = useState(null);
-  const [commitFiles, setCommitFiles] = useState(null);
+  const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
+  const [commitFiles, setCommitFiles] = useState<CommitFileEntry[] | null>(null);
   const [commitFilesLoading, setCommitFilesLoading] = useState(false);
-  const [expandedFile, setExpandedFile] = useState(null);
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
   const [fileDiff, setFileDiff] = useState('');
   const [fileDiffLoading, setFileDiffLoading] = useState(false);
-  const [localStatus, setLocalStatus] = useState(null);
+  const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null);
   const [localStatusLoading, setLocalStatusLoading] = useState(false);
-  const [selectedLocalFile, setSelectedLocalFile] = useState(null);
-  const [selectedLocalFileType, setSelectedLocalFileType] = useState(null);
-  const [localFileDiff, setLocalFileDiff] = useState([]);
+  const [selectedLocalFile, setSelectedLocalFile] = useState<string | null>(null);
+  const [selectedLocalFileType, setSelectedLocalFileType] = useState<string | null>(null);
+  const [localFileDiff, setLocalFileDiff] = useState<DiffRow[]>([]);
   const [localFileDiffLoading, setLocalFileDiffLoading] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [commitLoading, setCommitLoading] = useState(false);
   const [stageLoading, setStageLoading] = useState(false);
   const [unstageLoading, setUnstageLoading] = useState(false);
-  const [selectedStagedFiles, setSelectedStagedFiles] = useState({});
-  const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState({});
+  const [selectedStagedFiles, setSelectedStagedFiles] = useState<Record<string, boolean>>({});
+  const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState<Record<string, boolean>>({});
   const [theme, setTheme] = useState('light');
-  const [conflictFiles, setConflictFiles] = useState(null);
-  const [conflictType, setConflictType] = useState(null);
-  const [conflictTheirsBranch, setConflictTheirsBranch] = useState(null);
+  const [conflictFiles, setConflictFiles] = useState<string[] | null>(null);
+  const [conflictType, setConflictType] = useState<string | null>(null);
+  const [conflictTheirsBranch, setConflictTheirsBranch] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -87,7 +149,7 @@ function GitVisualizer() {
       } catch (_) { /* ignore */ }
       setInitialLoading(false);
     })();
-    fetchUiState().then(s => {
+    fetchUiState().then((s: any) => {
       if (s.activeTab) setActiveTab(s.activeTab);
       if (typeof s.sidebarWidth === 'number') setSidebarWidth(s.sidebarWidth);
       if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
@@ -95,9 +157,9 @@ function GitVisualizer() {
     }).catch(() => {});
   }, []);
 
-  const saveUiStateDebounced = useRef(null);
+  const saveUiStateDebounced = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const queueSaveUiState = useCallback((partial) => {
+  const queueSaveUiState = useCallback((partial: Record<string, any>) => {
     if (saveUiStateDebounced.current) clearTimeout(saveUiStateDebounced.current);
     saveUiStateDebounced.current = setTimeout(() => saveUiState(partial), 300);
   }, []);
@@ -117,12 +179,12 @@ function GitVisualizer() {
       setDirectories([]);
       setGitInfo(null);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       setError(t('error.loadDrives', { msg: err.response?.data?.error || err.message }));
     }
   };
 
-  const handleLoadDirectories = async (dirPath) => {
+  const handleLoadDirectories = async (dirPath: string) => {
     try {
       setLoading(true);
       const data = await fetchDirectories(dirPath);
@@ -132,15 +194,15 @@ function GitVisualizer() {
       setShowDrives(false);
       setGitInfo(null);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       setError(t('error.loadDirectories', { msg: err.response?.data?.error || err.message }));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDriveClick = (drivePath) => handleLoadDirectories(drivePath);
-  const handleDirectoryClick = (dirPath) => handleLoadDirectories(dirPath);
+  const handleDriveClick = (drivePath: string) => handleLoadDirectories(drivePath);
+  const handleDirectoryClick = (dirPath: string) => handleLoadDirectories(dirPath);
 
   const handleParentClick = () => {
     if (parentPath) handleLoadDirectories(parentPath);
@@ -151,11 +213,11 @@ function GitVisualizer() {
     if (trimmed) handleLoadDirectories(trimmed);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleGoPath();
   };
 
-  const handleDoCheckGit = async (dirPath) => {
+  const handleDoCheckGit = async (dirPath: string) => {
     try {
       setLoading(true);
       const data = await checkGit(dirPath);
@@ -167,7 +229,7 @@ function GitVisualizer() {
         setSelectedBranch(data.currentBranch);
         setView('analyze');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(t('error.checkGit', { msg: err.response?.data?.error || err.message }));
     } finally {
       setLoading(false);
@@ -176,7 +238,7 @@ function GitVisualizer() {
 
   const handleCheckGit = () => handleDoCheckGit(currentPath);
 
-  const handleLoadGraph = async (page = 1, pageSize = commitPageSize, branch) => {
+  const handleLoadGraph = async (page = 1, pageSize = commitPageSize, branch?: string) => {
     setGraphLoading(true);
     try {
       const data = await fetchCommitGraph(currentPath, page, pageSize, branch);
@@ -211,17 +273,17 @@ function GitVisualizer() {
     }
   };
 
-  const handlePageSizeChange = (e) => {
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = parseInt(e.target.value, 10);
     setCommitPageSize(v);
     handleLoadGraph(1, v);
   };
 
-  const handleBranchSelect = (branch) => {
+  const handleBranchSelect = (branch: string) => {
     setSelectedBranch(branch);
   };
 
-  const handleBranchDoubleClick = (branch) => {
+  const handleBranchDoubleClick = (branch: string) => {
     setSelectedBranch(branch);
     setActiveTab('commits');
   };
@@ -267,18 +329,18 @@ function GitVisualizer() {
     } catch (_) {}
   };
 
-  const handleRefreshGitInfo = async () => {
+  const handleRefreshGitInfo = async (): Promise<GitInfo> => {
     const data = await checkGit(currentPath);
     setGitInfo(data);
     return data;
   };
 
-  const handleCheckoutBranch = async (branch) => {
+  const handleCheckoutBranch = async (branch: string) => {
     try {
       await checkoutBranch(currentPath, branch);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-    } catch (err) {
+    } catch (err: any) {
       const msg = err.response?.data?.error || err.message;
       if (msg.includes('would be overwritten by checkout')) {
         Swal.fire({ icon: 'error', title: i18n.t('dialog.checkoutFail'), text: i18n.t('dialog.checkoutConflict') });
@@ -290,7 +352,7 @@ function GitVisualizer() {
     }
   };
 
-  const handleCreateBranch = async (sourceBranch) => {
+  const handleCreateBranch = async (sourceBranch: string) => {
     const { value: name } = await Swal.fire({
       title: i18n.t('dialog.createBranch.title'),
       input: 'text',
@@ -298,24 +360,24 @@ function GitVisualizer() {
       showCancelButton: true,
       confirmButtonText: t('common.create'),
       cancelButtonText: t('common.cancel'),
-      inputValidator: (value) => value ? null : i18n.t('dialog.createBranch.emptyError')
+      inputValidator: (value: string) => value ? null : i18n.t('dialog.createBranch.emptyError')
     });
     if (!name) return;
     setLoading(true);
     try {
       await createBranch(currentPath, name, sourceBranch);
       await handleRefreshGitInfo();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.createFail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMergeBranch = async (sourceBranch) => {
+  const handleMergeBranch = async (sourceBranch: string) => {
     const { isConfirmed } = await Swal.fire({
       title: i18n.t('dialog.merge.title'),
-      text: i18n.t('dialog.merge.text', { source: sourceBranch, current: gitInfo.currentBranch }),
+      text: i18n.t('dialog.merge.text', { source: sourceBranch, current: gitInfo?.currentBranch }),
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: t('common.confirm'),
@@ -334,12 +396,12 @@ function GitVisualizer() {
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
       await handleLoadGraph();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.mergeFail'), text: err.response?.data?.error || err.message });
     }
   };
 
-  const handleRenameBranch = async (branch) => {
+  const handleRenameBranch = async (branch: string) => {
     const { value: newName } = await Swal.fire({
       title: i18n.t('dialog.rename.title'),
       input: 'text',
@@ -347,7 +409,7 @@ function GitVisualizer() {
       showCancelButton: true,
       confirmButtonText: t('common.confirm'),
       cancelButtonText: t('common.cancel'),
-      inputValidator: (value) => {
+      inputValidator: (value: string) => {
         if (!value) return i18n.t('dialog.rename.emptyError');
         if (value === branch) return i18n.t('dialog.rename.sameError');
       }
@@ -360,14 +422,14 @@ function GitVisualizer() {
       if (selectedBranch === branch) {
         setSelectedBranch(newName);
       }
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.renameFail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteBranch = async (branch) => {
+  const handleDeleteBranch = async (branch: string) => {
     const { isConfirmed } = await Swal.fire({
       title: i18n.t('dialog.delete.title'),
       text: i18n.t('dialog.delete.text', { branch }),
@@ -382,26 +444,26 @@ function GitVisualizer() {
     try {
       await deleteBranch(currentPath, branch);
       await handleRefreshGitInfo();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.deleteFail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const escapeHtml = (str) => {
+  const escapeHtml = (str: string) => {
     const div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
   };
 
-  const confirmPushDialog = async (branch) => {
+  const confirmPushDialog = async (branch: string) => {
     const { commits } = await fetchPendingCommits(currentPath, branch);
     if (!commits || commits.length === 0) {
       Swal.fire({ icon: 'info', title: t('local.pushNoPending'), timer: 1500, showConfirmButton: false });
       return null;
     }
-    const rows = commits.map(c =>
+    const rows = commits.map((c: { hash: string; message: string }) =>
       `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666">${escapeHtml(c.hash.substring(0, 7))}</td><td style="padding:3px 8px">${escapeHtml(c.message)}</td></tr>`
     ).join('');
     const result = await Swal.fire({
@@ -414,7 +476,7 @@ function GitVisualizer() {
     return result.isConfirmed ? branch : null;
   };
 
-  const handlePushBranch = async (branch) => {
+  const handlePushBranch = async (branch: string) => {
     setLoading(true);
     try {
       const confirmed = await confirmPushDialog(branch);
@@ -422,7 +484,7 @@ function GitVisualizer() {
       await pushBranch(currentPath, branch);
       Swal.fire({ icon: 'success', title: i18n.t('dialog.push.success', { branch }), timer: 2000, showConfirmButton: false });
       await handleRefreshGitInfo();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.push.fail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
@@ -435,30 +497,30 @@ function GitVisualizer() {
       await fetchAll(currentPath);
       await handleRefreshGitInfo();
       Swal.fire({ icon: 'success', title: i18n.t('dialog.fetch.success'), timer: 2000, showConfirmButton: false });
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.fetch.fail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCompareBranches = async (compareBranch) => {
+  const handleCompareBranches = async (compareBranch: string) => {
     setLoading(true);
     try {
-      const data = await compareBranches(currentPath, gitInfo.currentBranch, compareBranch);
-      setCompareData({ ...data, compareBranch, baseBranch: gitInfo.currentBranch });
+      const data = await compareBranches(currentPath, gitInfo!.currentBranch, compareBranch);
+      setCompareData({ ...data, compareBranch, baseBranch: gitInfo!.currentBranch });
       setActiveTab('compare');
       setSelectedDiffCommit(null);
       setDiffContent('');
       setDiffMeta(null);
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.compareFail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLoadDiff = async (commitHash) => {
+  const handleLoadDiff = async (commitHash: string) => {
     if (selectedDiffCommit === commitHash) return;
     setSelectedDiffCommit(commitHash);
     setDiffLoading(true);
@@ -466,17 +528,17 @@ function GitVisualizer() {
       const data = await getCommitDiff(currentPath, commitHash);
       setDiffMeta({ hash: data.commitHash, message: data.message, author: data.author, date: data.date });
       setDiffContent(data.diff);
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.diffFail'), text: err.response?.data?.error || err.message });
     } finally {
       setDiffLoading(false);
     }
   };
 
-  const handleRebaseBranch = async (targetBranch) => {
+  const handleRebaseBranch = async (targetBranch: string) => {
     const { isConfirmed } = await Swal.fire({
       title: i18n.t('dialog.rebase.title'),
-      text: i18n.t('dialog.rebase.text', { current: gitInfo.currentBranch, target: targetBranch }),
+      text: i18n.t('dialog.rebase.text', { current: gitInfo?.currentBranch, target: targetBranch }),
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: t('common.confirm'),
@@ -495,15 +557,15 @@ function GitVisualizer() {
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
       await handleLoadGraph();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.rebaseFail'), text: err.response?.data?.error || err.message });
     }
   };
 
-  const handleContextMenuOpen = (e, branch) => {
+  const handleContextMenuOpen = (e: React.MouseEvent, branch: string) => {
     e.preventDefault();
-    const isCurrent = branch === gitInfo.currentBranch;
-    const actions = [];
+    const isCurrent = branch === gitInfo?.currentBranch;
+    const actions: { label: string; onClick: () => void; danger?: boolean }[] = [];
 
     if (!isCurrent) {
       actions.push({ label: t('context.checkout', { branch }), onClick: () => handleCheckoutBranch(branch) });
@@ -512,11 +574,11 @@ function GitVisualizer() {
     actions.push({ label: t('context.create', { branch }), onClick: () => handleCreateBranch(branch) });
 
     if (!isCurrent) {
-      actions.push({ label: t('context.merge', { branch, current: gitInfo.currentBranch }), onClick: () => handleMergeBranch(branch) });
-      actions.push({ label: t('context.rebase', { current: gitInfo.currentBranch, branch }), onClick: () => handleRebaseBranch(branch) });
+      actions.push({ label: t('context.merge', { branch, current: gitInfo?.currentBranch }), onClick: () => handleMergeBranch(branch) });
+      actions.push({ label: t('context.rebase', { current: gitInfo?.currentBranch, branch }), onClick: () => handleRebaseBranch(branch) });
     }
 
-    actions.push({ label: t('context.compare', { branch, current: gitInfo.currentBranch }), onClick: () => handleCompareBranches(branch) });
+    actions.push({ label: t('context.compare', { branch, current: gitInfo?.currentBranch }), onClick: () => handleCompareBranches(branch) });
     actions.push({ label: t('context.fetch'), onClick: () => handleFetch() });
     actions.push({ label: t('context.push'), onClick: () => handlePushBranch(branch) });
     actions.push({ label: t('context.rename'), onClick: () => handleRenameBranch(branch) });
@@ -528,7 +590,7 @@ function GitVisualizer() {
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 
-  const loadFileDiff = async (filePath, type) => {
+  const loadFileDiff = async (filePath: string, type: string) => {
     setLocalFileDiffLoading(true);
     try {
       const data = await fetchLocalFileDiff(currentPath, filePath, type);
@@ -546,8 +608,8 @@ function GitVisualizer() {
     try {
       const data = await fetchLocalStatus(currentPath);
       setLocalStatus(data);
-      const stagedSel = {};
-      data.staged.forEach(f => { stagedSel[f.path] = true; });
+      const stagedSel: Record<string, boolean> = {};
+      data.staged.forEach((f: LocalStatusEntry) => { stagedSel[f.path] = true; });
       setSelectedStagedFiles(stagedSel);
       setSelectedUnstagedFiles({});
       if (data.staged.length > 0) {
@@ -570,25 +632,25 @@ function GitVisualizer() {
     }
   };
 
-  const handleSelectLocalFile = async (filePath, type) => {
+  const handleSelectLocalFile = async (filePath: string, type: string) => {
     if (selectedLocalFile === filePath && selectedLocalFileType === type) return;
     setSelectedLocalFile(filePath);
     setSelectedLocalFileType(type);
     await loadFileDiff(filePath, type);
   };
 
-  const handleToggleStagedFile = (path) => {
+  const handleToggleStagedFile = (path: string) => {
     setSelectedStagedFiles(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
-  const handleToggleUnstagedFile = (path) => {
+  const handleToggleUnstagedFile = (path: string) => {
     setSelectedUnstagedFiles(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
   const handleToggleAllStaged = () => {
     if (!localStatus) return;
     const allSelected = localStatus.staged.every(f => selectedStagedFiles[f.path]);
-    const next = {};
+    const next: Record<string, boolean> = {};
     localStatus.staged.forEach(f => { next[f.path] = !allSelected; });
     setSelectedStagedFiles(next);
   };
@@ -632,7 +694,7 @@ function GitVisualizer() {
         setLocalFileDiff([]);
       }
       await handleLoadLocalStatus();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('local.restoreFail'), text: err.response?.data?.error || err.message });
     } finally {
       setRestoreLoading(false);
@@ -650,7 +712,7 @@ function GitVisualizer() {
       await stageFiles(currentPath, selectedFiles);
       setSelectedUnstagedFiles({});
       await handleLoadLocalStatus();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('local.stageFail'), text: err.response?.data?.error || err.message });
     } finally {
       setStageLoading(false);
@@ -682,7 +744,7 @@ function GitVisualizer() {
         setLocalFileDiff([]);
       }
       await handleLoadLocalStatus();
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('local.unstageFail'), text: err.response?.data?.error || err.message });
     } finally {
       setUnstageLoading(false);
@@ -692,12 +754,12 @@ function GitVisualizer() {
   const handleToggleAllUnstaged = () => {
     if (!localStatus) return;
     const allSelected = localStatus.unstaged.every(f => selectedUnstagedFiles[f.path]);
-    const next = {};
+    const next: Record<string, boolean> = {};
     localStatus.unstaged.forEach(f => { next[f.path] = !allSelected; });
     setSelectedUnstagedFiles(next);
   };
 
-  const getSelectedFiles = () => [
+  const getSelectedFiles = (): string[] => [
     ...Object.keys(selectedStagedFiles).filter(k => selectedStagedFiles[k]),
     ...Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k])
   ];
@@ -724,7 +786,7 @@ function GitVisualizer() {
       await handleLoadGraph(1);
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('local.commitFail'), text: err.response?.data?.error || err.message });
     } finally {
       setCommitLoading(false);
@@ -744,12 +806,9 @@ function GitVisualizer() {
     }
     setCommitLoading(true);
     try {
-      // Step 1: commit
       await commitChanges(currentPath, msg, selectedFiles);
-      // Step 2: get current branch
       let data = await handleRefreshGitInfo();
       const branch = data.currentBranch;
-      // Step 3: confirm push dialog
       const confirmed = await confirmPushDialog(branch);
       if (!confirmed) {
         Swal.fire({ icon: 'info', title: t('local.pushCancel'), timer: 1500, showConfirmButton: false });
@@ -764,7 +823,7 @@ function GitVisualizer() {
       await handleLoadLocalStatus();
       await handleLoadGraph(1);
       setSelectedBranch(branch);
-    } catch (err) {
+    } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('local.commitPushFail'), text: err.response?.data?.error || err.message });
     } finally {
       setCommitLoading(false);
@@ -782,11 +841,9 @@ function GitVisualizer() {
     setTheme(next);
   };
 
-
-
   const isSidebarCollapsed = sidebarWidth < 20;
 
-  const handleSidebarMouseDown = useCallback((e) => {
+  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
     startX.current = e.clientX;
     startWidth.current = Math.max(0, sidebarRef.current?.offsetWidth || sidebarWidth);
@@ -794,7 +851,7 @@ function GitVisualizer() {
     document.body.style.userSelect = 'none';
   }, [sidebarWidth]);
 
-  const handleSidebarMouseMove = useCallback((e) => {
+  const handleSidebarMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current) return;
     const delta = e.clientX - startX.current;
     setSidebarWidth(Math.max(0, startWidth.current + delta));
@@ -818,11 +875,11 @@ function GitVisualizer() {
 
   const [localSidebarWidth, setLocalSidebarWidth] = useState(280);
   const localSidebarDragging = useRef(false);
-  const localViewRef = useRef(null);
+  const localViewRef = useRef<HTMLDivElement>(null);
   const localDragStartX = useRef(0);
   const localDragStartW = useRef(280);
 
-  const handleLocalSidebarMouseDown = (e) => {
+  const handleLocalSidebarMouseDown = (e: React.MouseEvent) => {
     localSidebarDragging.current = true;
     localDragStartX.current = e.clientX;
     localDragStartW.current = localSidebarWidth;
@@ -831,7 +888,7 @@ function GitVisualizer() {
   };
 
   useEffect(() => {
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       if (!localSidebarDragging.current) return;
       const el = localViewRef.current;
       if (!el) return;
@@ -855,12 +912,12 @@ function GitVisualizer() {
 
   const [diffSplitPct, setDiffSplitPct] = useState(0.5);
   const diffDragging = useRef(false);
-  const diffBodyRef = useRef(null);
+  const diffBodyRef = useRef<HTMLDivElement>(null);
   const ROW_HEIGHT = 20;
   const SCROLL_BUFFER = 20;
   const [diffScrollTop, setDiffScrollTop] = useState(0);
   const [diffContainerHeight, setDiffContainerHeight] = useState(600);
-  const diffVirtualRef = useRef(null);
+  const diffVirtualRef = useRef<HTMLDivElement>(null);
 
   const handleDiffScroll = useCallback(() => {
     if (diffVirtualRef.current) {
@@ -891,14 +948,14 @@ function GitVisualizer() {
     return () => ro.disconnect();
   }, []);
 
-  const handleDiffMouseDown = (e) => {
+  const handleDiffMouseDown = (e: React.MouseEvent) => {
     diffDragging.current = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
   useEffect(() => {
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       if (!diffDragging.current) return;
       const el = diffBodyRef.current;
       if (!el) return;
@@ -920,7 +977,7 @@ function GitVisualizer() {
     };
   }, []);
 
-  const handleToggleCommit = async (commitHash) => {
+  const handleToggleCommit = async (commitHash: string) => {
     if (expandedCommit === commitHash) {
       setExpandedCommit(null);
       setCommitFiles(null);
@@ -942,7 +999,7 @@ function GitVisualizer() {
     }
   };
 
-  const handleToggleFile = async (commitHash, filePath) => {
+  const handleToggleFile = async (commitHash: string, filePath: string) => {
     if (expandedFile === filePath) {
       setExpandedFile(null);
       setFileDiff('');
@@ -1344,30 +1401,33 @@ function GitVisualizer() {
                           <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>
                         </div>
-                        <div className="side-by-side-body" ref={(el) => { diffBodyRef.current = el; diffVirtualRef.current = el; }} style={{ '--left-pct': `${diffSplitPct * 100}%` }} onScroll={handleDiffScroll}>
+                        <div className="side-by-side-body" ref={(el) => { (diffBodyRef as React.MutableRefObject<HTMLDivElement | null>).current = el; (diffVirtualRef as React.MutableRefObject<HTMLDivElement | null>).current = el; }} style={{ '--left-pct': `${diffSplitPct * 100}%` } as React.CSSProperties} onScroll={handleDiffScroll}>
                           <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
                           <div style={{ height: diffVirtualRows.total * ROW_HEIGHT, position: 'relative' }}>
                             <div style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
-                              {diffVirtualRows.visible.map((row, i) => (
-                                <div key={diffVirtualRows.startIdx + i} className="diff-row">
-                                  {row.oldContent !== null ? (
-                                    <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
-                                      <span className="diff-line-num">{row.oldLine}</span>
-                                      <span className="diff-line-content">{row.oldContent}</span>
-                                    </div>
-                                  ) : (
-                                    <div className="diff-cell" />
-                                  )}
-                                  {row.newContent !== null ? (
-                                    <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
-                                      <span className="diff-line-num">{row.newLine}</span>
-                                      <span className="diff-line-content">{row.newContent}</span>
-                                    </div>
-                                  ) : (
-                                    <div className="diff-cell" />
-                                  )}
-                                </div>
-                              ))}
+                              {diffVirtualRows.visible.map((row, i) => {
+                                const idx = diffVirtualRows.startIdx + i;
+                                return (
+                                  <div key={idx} className="diff-row">
+                                    {row.oldContent !== null ? (
+                                      <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
+                                        <span className="diff-line-num">{row.oldLine}</span>
+                                        <span className="diff-line-content">{row.oldContent}</span>
+                                      </div>
+                                    ) : (
+                                      <div className="diff-cell" />
+                                    )}
+                                    {row.newContent !== null ? (
+                                      <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
+                                        <span className="diff-line-num">{row.newLine}</span>
+                                        <span className="diff-line-content">{row.newContent}</span>
+                                      </div>
+                                    ) : (
+                                      <div className="diff-cell" />
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>

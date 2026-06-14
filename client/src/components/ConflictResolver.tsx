@@ -3,22 +3,60 @@ import { useTranslation } from 'react-i18next';
 import { fetchConflictFileContent, abortMerge, resolveConflictFile, fetchUiState, saveUiState } from '../api';
 import './ConflictResolver.css';
 
-export default function ConflictResolver({ currentPath, currentBranch, conflictFiles, conflictType, theirsBranch, onAbort, onRefresh, onFileResolved }) {
+interface HunkInfo {
+  ourStart: number;
+  ourCount: number;
+  theirStart: number;
+  theirCount: number;
+}
+
+interface FileContent {
+  ours: string;
+  theirs: string;
+  hunks: HunkInfo[];
+}
+
+interface ConflictRow {
+  rowIdx: number;
+  ourLineNum: number | null;
+  ourContent: string;
+  theirLineNum: number | null;
+  theirContent: string;
+}
+
+interface CellSelection {
+  ours: boolean;
+  theirs: boolean;
+  first: string | null;
+}
+
+interface ConflictResolverProps {
+  currentPath: string;
+  currentBranch: string;
+  conflictFiles: string[];
+  conflictType: string | null;
+  theirsBranch: string | null;
+  onAbort: () => void;
+  onRefresh: () => void;
+  onFileResolved: () => void;
+}
+
+export default function ConflictResolver({ currentPath, currentBranch, conflictFiles, conflictType, theirsBranch, onAbort, onRefresh, onFileResolved }: ConflictResolverProps) {
   const { t } = useTranslation();
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [ours, setOurs] = useState('');
   const [theirs, setTheirs] = useState('');
-  const [hunks, setHunks] = useState([]);
+  const [hunks, setHunks] = useState<HunkInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [aborting, setAborting] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [resolvingAll, setResolvingAll] = useState(false);
-  const [selectionsByFile, setSelectionsByFile] = useState({});
-  const loadedContent = useRef({});
+  const [selectionsByFile, setSelectionsByFile] = useState<Record<string, Record<number, CellSelection>>>({});
+  const loadedContent = useRef<Record<string, FileContent>>({});
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    fetchUiState().then(state => {
+    fetchUiState().then((state: any) => {
       const cs = state.conflictSelections || {};
       if (cs[currentPath]) {
         setSelectionsByFile(cs[currentPath]);
@@ -32,7 +70,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
       return;
     }
     const timer = setTimeout(() => {
-      fetchUiState().then(state => {
+      fetchUiState().then((state: any) => {
         const cs = state.conflictSelections || {};
         cs[currentPath] = selectionsByFile;
         return saveUiState({ conflictSelections: cs });
@@ -43,7 +81,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
 
   const currentSelections = (selectedFile && selectionsByFile[selectedFile]) || {};
 
-  const handleSelectFile = useCallback(async (file) => {
+  const handleSelectFile = useCallback(async (file: string) => {
     setSelectedFile(file);
     if (loadedContent.current[file]) {
       const c = loadedContent.current[file];
@@ -69,10 +107,10 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     }
   }, [currentPath]);
 
-  const rows = useMemo(() => {
+  const rows = useMemo((): ConflictRow[] => {
     const oLines = ours.split('\n');
     const tLines = theirs.split('\n');
-    const result = [];
+    const result: ConflictRow[] = [];
     let rowIdx = 0;
     for (const hunk of hunks) {
       const maxRows = Math.max(hunk.ourCount, hunk.theirCount);
@@ -89,9 +127,9 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     return result;
   }, [ours, theirs, hunks]);
 
-  const handleCellClick = useCallback((rowIdx, side) => {
+  const handleCellClick = useCallback((rowIdx: number, side: 'ours' | 'theirs') => {
     setSelectionsByFile(prev => {
-      const fileSelections = { ...(prev[selectedFile] || {}) };
+      const fileSelections = { ...(prev[selectedFile!] || {}) };
       const cur = fileSelections[rowIdx];
       if (!cur) {
         fileSelections[rowIdx] = { ours: side === 'ours', theirs: side === 'theirs', first: side };
@@ -111,7 +149,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
       } else {
         fileSelections[rowIdx] = { ...cur, [side]: true };
       }
-      return { ...prev, [selectedFile]: fileSelections };
+      return { ...prev, [selectedFile!]: fileSelections };
     });
   }, [selectedFile]);
 
@@ -119,7 +157,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     setAborting(true);
     try {
       await abortMerge(currentPath);
-      fetchUiState().then(state => {
+      fetchUiState().then((state: any) => {
         const cs = state.conflictSelections || {};
         delete cs[currentPath];
         saveUiState({ conflictSelections: cs });
@@ -130,10 +168,10 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     }
   };
 
-  const buildResolvedContent = useCallback((fileOurs, fileTheirs, fileHunks, fileSelections) => {
+  const buildResolvedContent = useCallback((fileOurs: string, fileTheirs: string, fileHunks: HunkInfo[], fileSelections: Record<number, CellSelection>): string => {
     const oLines = fileOurs.split('\n');
     const tLines = fileTheirs.split('\n');
-    const result = [];
+    const result: string[] = [];
     let ourPos = 0;
     let rowIdx = 0;
 
@@ -182,7 +220,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     setResolving(true);
     try {
       const content = buildResolvedContent(ours, theirs, hunks, currentSelections);
-      await resolveConflictFile(currentPath, selectedFile, content);
+      await resolveConflictFile(currentPath, selectedFile!, content);
       onFileResolved();
     } catch (_) {
       setResolving(false);
@@ -211,7 +249,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
         );
         await resolveConflictFile(currentPath, file, content);
       }
-      fetchUiState().then(state => {
+      fetchUiState().then((state: any) => {
         const cs = state.conflictSelections || {};
         delete cs[currentPath];
         saveUiState({ conflictSelections: cs });
@@ -239,7 +277,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     return sel?.ours || sel?.theirs;
   });
 
-  const fileAllSelected = useCallback((file) => {
+  const fileAllSelected = useCallback((file: string): boolean => {
     const fileData = loadedContent.current[file];
     if (!fileData) return false;
     let rowCount = 0;

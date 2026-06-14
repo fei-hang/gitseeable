@@ -4,14 +4,7 @@
 
 Full-stack Git repo visualizer (React 19 + Vite 5 frontend, Express 5 backend, `simple-git` for server-side Git ops). Windows-only drive enumeration. No database; state is persisted to `server/state.json` (gitignored).
 
-No tests, no CI/CD, no Prettier, no TypeScript in source (`.d.ts` devDeps are IDE-only).
-
-## Git config (local, this repo only)
-
-- `user.name = 张飞航`
-- `user.email = feihangzhang@163.com`
-- Remote: `origin` → `https://github.com/fei-hang/gitseeable.git`
-- All 6 commits rewrote with `git filter-branch` — use `git push -f origin main` after any history rewrite
+**Migrated to TypeScript** — all source files are `.ts`/`.tsx`. Server uses `tsx` for dev (no build step needed), `tsc` for production build. Client uses Vite's built-in TS support.
 
 ## Commit workflow
 
@@ -35,20 +28,22 @@ Node 20.19.3 required (via nvm). Use `nvm use 20.19.3` before any npm operations
 | `npm run server` | Server only |
 | `npm run client` | Client only |
 | `cd client && npm run build` | Production build |
-| `cd client && npm run lint` | ESLint (flat config) |
+| `cd client && npm run lint` | ESLint (flat config + TypeScript) |
+| `cd server && npm run build` | Server TypeScript compilation |
+| `cd server && npm run dev` | Server dev (tsx watch) |
 
 ## Structure
 
 ```
-client/         — React ESM app (type: "module")
-server/         — Express CJS app (require)
+client/         — React ESM app (type: "module"), TypeScript (.ts/.tsx)
+server/         — Express CJS app (require), TypeScript (.ts)
 package.json    — root, only depends on concurrently
 .opencode/      — skill definitions (agent-guide, i18n, frontend-spec, ui-new)
 ```
 
 ## API endpoints
 
-All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `POST` calls.
+All in `server/index.ts` (~1020 lines, with type annotations). REST: `GET /api/drives`, remainder are `POST` calls.
 
 | Endpoint | Purpose |
 |---|---|
@@ -103,11 +98,14 @@ All in `server/index.js` (~520 lines). REST: `GET /api/drives`, remainder are `P
   - **To verify endpoints:** if server is already running in a separate terminal, use `Invoke-WebRequest` / `curl` — these exit immediately.
 - **Express 5**: API differs from Express 4 (`req.query`, error handling).
 - **Vite proxy**: `client/vite.config.js` proxies `/api` → `localhost:3001`. `API_BASE_URL` is `""` (empty string).
-- **Module systems**: `client/` is ESM (type: "module"), `server/` is CommonJS (`require`).
+- **Module systems**: `client/` is ESM (type: "module"), `server/` is CommonJS (`require`). Both now use TypeScript.
+- **Server dev**: Uses `npx tsx server/index.ts` (tsx runs TS directly without compilation).
+- **Server build**: `cd server && npm run build` compiles to `server/dist/`.
+- **TypeScript configs**: `server/tsconfig.json` (CommonJS, ES2020), `client/tsconfig.json` (ESNext, react-jsx).
 - **Port polling, not `Start-Sleep`**: To wait for server startup, poll the port instead of sleeping — `Start-Sleep` produces no output and causes the agent to appear frozen. Use `Test-NetConnection -ComputerName localhost -Port 3001 -WarningAction SilentlyContinue` or try `Invoke-WebRequest http://localhost:3001/api/drives -ErrorAction SilentlyContinue` in a loop with a short sleep (≤500ms).
 - **Start server + client without hanging**: Use `Start-Job` to run each service as a PowerShell background job. `Start-Job` returns immediately, so the Bash tool completes instantly.
   - **Correct pattern** — two separate bash calls:
-    1. `Start-Job -ScriptBlock { node server/index.js }`
+    1. `Start-Job -ScriptBlock { npx tsx server/index.ts }`
     2. `Start-Job -ScriptBlock { Set-Location "D:\softwareDataDirectory\JavaScript\gitseeable\client"; npx.cmd vite }`
   - To verify startup, poll the port with `Test-NetConnection` or `Invoke-WebRequest` in a loop.
 

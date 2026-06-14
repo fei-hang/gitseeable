@@ -28,8 +28,8 @@ A full-stack Git repository visualization tool built with React 19 + Vite 5 (fro
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19, Vite 5, Axios, i18next, SweetAlert2 |
-| **Backend** | Express 5, simple-git |
+| **Frontend** | React 19, Vite 5, Axios, i18next, SweetAlert2, TypeScript |
+| **Backend** | Express 5, simple-git, TypeScript |
 | **Module System** | Frontend ESM, Backend CommonJS |
 
 ## Getting Started
@@ -61,14 +61,16 @@ Open http://localhost:3000 in your browser.
 | `npm run dev` | Start both server + client concurrently |
 | `npm run server` | Start backend only (port 3001) |
 | `npm run client` | Start frontend only (port 3000) |
-| `cd client && npm run build` | Production build |
+| `cd client && npm run build` | Client production build |
 | `cd client && npm run lint` | Run ESLint |
+| `cd server && npm run dev` | Server dev mode (tsx watch) |
+| `cd server && npm run build` | Compile server TypeScript |
 
 ## AI-Friendly Quick Start
 
 You can share the following prompt with an AI coding assistant (Cursor, Claude Code, etc.) to clone and start this project automatically:
 
-> Clone https://github.com/fei-hang/gitseeable.git, then run `nvm use 20.19.3` to set the correct Node version, and install dependencies with `npm install && cd client && npm install && cd ../server && npm install`. Start development with `node server/index.js &` and `npx vite &` (Linux/macOS) or `Start-Job -ScriptBlock { node server/index.js }` and `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }` (PowerShell). Background the processes so your terminal stays available. Verify the backend with `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` and open http://localhost:3000 in the browser.
+> Clone https://github.com/fei-hang/gitseeable.git, then run `nvm use 20.19.3` to set the correct Node version, and install dependencies with `npm install && cd client && npm install && cd ../server && npm install`. Start development with `npx tsx server/index.ts &` and `npx vite &` (Linux/macOS) or `Start-Job -ScriptBlock { npx tsx server/index.ts }` and `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }` (PowerShell). Background the processes so your terminal stays available. Verify the backend with `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` and open http://localhost:3000 in the browser.
 
 ## License
 
