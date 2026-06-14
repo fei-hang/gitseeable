@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import simpleGit from 'simple-git';

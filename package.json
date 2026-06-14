@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Git repository visualizer — browse and analyze your repos in the browser",
   "main": "server/dist/index.js",
+  "bin": {
+    "gitseeable": "server/dist/index.js"
+  },
   "scripts": {
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm run build",
