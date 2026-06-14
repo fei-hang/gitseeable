@@ -1,6 +1,6 @@
 {
   "name": "gitseeable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Git repository visualizer — browse and analyze your repos in the browser",
   "main": "server/dist/index.js",
   "bin": {
@@ -27,7 +27,11 @@
     "url": "https://github.com/fei-hang/gitseeable/issues"
   },
   "homepage": "https://github.com/fei-hang/gitseeable#readme",
-  "keywords": ["git", "visualizer", "repository"],
+  "keywords": [
+    "git",
+    "visualizer",
+    "repository"
+  ],
   "author": "张飞航",
   "license": "ISC",
   "dependencies": {

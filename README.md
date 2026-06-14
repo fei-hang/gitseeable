@@ -96,7 +96,13 @@ Open http://localhost:3000 in your browser.
 
 ## AI-Friendly Quick Start
 
-You can share the following prompt with an AI coding assistant (Cursor, Claude Code, etc.) to clone and start this project automatically:
+You can share the following prompts with an AI coding assistant (Cursor, Claude Code, etc.) to start this project automatically.
+
+**Option 1: Quick install via npm (recommended)**
+
+> Install gitseeable globally and run it: `npm install -g gitseeable && gitseeable`. Open http://localhost:3001 in the browser and verify the backend with `Invoke-WebRequest http://localhost:3001/api/drives -Method GET`.
+
+**Option 2: Clone from source**
 
 > Clone https://github.com/fei-hang/gitseeable.git, then run `nvm use 20.19.3` to set the correct Node version, and install dependencies with `npm install && cd client && npm install && cd ../server && npm install`. Start development with `npx tsx server/index.ts &` and `npx vite &` (Linux/macOS) or `Start-Job -ScriptBlock { npx tsx server/index.ts }` and `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }` (PowerShell). Background the processes so your terminal stays available. Verify the backend with `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` and open http://localhost:3000 in the browser.
 

@@ -94,7 +94,13 @@ npm run dev
 
 ## AI 快速启动
 
-你可以把以下提示词分享给 AI 编程助手（Cursor、Claude Code 等），让它自动克隆并启动项目：
+你可以把以下提示词分享给 AI 编程助手（Cursor、Claude Code 等），让它自动启动项目。
+
+**方式一：npm 快速安装（推荐）**
+
+> 全局安装 gitseeable 并运行：`npm install -g gitseeable && gitseeable`。打开 http://localhost:3001，用 `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` 验证后端。
+
+**方式二：从源码克隆**
 
 > 克隆 https://github.com/fei-hang/gitseeable.git，然后用 `nvm use 20.19.3` 设置正确的 Node 版本，用 `npm install && cd client && npm install && cd ../server && npm install` 安装依赖。启动开发服务：在 Linux/macOS 上用 `npx tsx server/index.ts &` 和 `npx vite &`，在 Windows 上用 `Start-Job -ScriptBlock { npx tsx server/index.ts }` 和 `Start-Job -ScriptBlock { Set-Location "client"; npx.cmd vite }`。必须后台运行，不要阻塞终端。用 `Invoke-WebRequest http://localhost:3001/api/drives -Method GET` 验证后端，然后打开 http://localhost:3000。
 
