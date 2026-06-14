@@ -37,6 +37,25 @@ Node 20.19.3 required. Use `nvm use 20.19.3` before any npm operations.
 | `cd server && npm run build` | Server TypeScript compilation |
 | `cd server && npm run dev` | Server dev (tsx watch) |
 
+## Starting servers for testing
+
+**IMPORTANT**: Never use `Start-Process` to start blocking/long-running tasks (servers, watchers, dev commands).
+Instead, run the npm script directly via `bash tool`:
+
+```powershell
+# Start both servers (blocks until interrupted):
+npm run dev
+
+# Or start one at a time, each in its own bash call:
+cd server; npx tsx server/index.ts
+cd client; npx vite
+
+# If non-blocking is needed, use PowerShell jobs (NOT Start-Process):
+$job = Start-Job { Set-Location "D:\softwareDataDirectory\JavaScript\gitseeable"; npm run dev }
+Start-Sleep 5; Receive-Job -Job $job
+Stop-Job $job; Remove-Job $job
+```
+
 ## Reference files
 
 `agentsref/` contains categorized reference material. Read the relevant file when the task involves that area:
