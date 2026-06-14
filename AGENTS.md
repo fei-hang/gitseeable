@@ -13,6 +13,7 @@ Full-stack Git repo visualizer (React 19 + Vite 5 + TypeScript frontend, Express
 
 Run `git commit` after every modification with a descriptive message. **Do NOT push** (done manually).
 IF you run git commit, in finish tell me with a descriptive message.
+IF you add a new feature, also update `DOC/README.md` with the corresponding operation instructions and screenshots.
 
 ## Dependencies
 
