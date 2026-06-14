@@ -1024,6 +1024,17 @@ app.get('/api/file-events', (req: Request, res: Response) => {
   });
 });
 
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+  app.get('/{*path}', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
+
 app.listen(Number(PORT), () => {
   console.log(`服务器启动成功`);
 });

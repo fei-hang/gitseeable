@@ -1,18 +1,30 @@
 {
   "name": "gitseeable",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Git repository visualizer — browse and analyze your repos in the browser",
+  "main": "server/dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "build": "npm run build:client && npm run build:server && node scripts/copy-client.js",
+    "start": "node server/dist/index.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "npx tsx server/index.ts",
-    "client": "cd client && npm run dev",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "client": "cd client && npm run dev"
   },
-  "keywords": [],
-  "author": "",
+  "files": [
+    "server/dist/",
+    "README.md"
+  ],
+  "keywords": ["git", "visualizer", "repository"],
+  "author": "张飞航",
   "license": "ISC",
-  "description": "",
   "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "simple-git": "^3.36.0"
+  },
+  "devDependencies": {
     "concurrently": "^10.0.3"
   }
 }
