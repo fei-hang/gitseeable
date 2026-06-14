@@ -830,6 +830,12 @@ function GitVisualizer() {
     }
   };
 
+  const handleRefresh = async () => {
+    await handleRefreshGitInfo();
+    await handleLoadGraph(1, commitPageSize, selectedBranch || undefined);
+    handleLoadLocalStatus();
+  };
+
   const handleSwitchLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
@@ -1098,6 +1104,7 @@ function GitVisualizer() {
               <button className={`analyze-tab${activeTab === 'conflicts' ? ' analyze-tab--active' : ''} analyze-tab--conflict`} onClick={() => setActiveTab('conflicts')}>{t('dialog.conflict')}</button>
             )}
           </div>
+          <button className="refresh-button" onClick={handleRefresh} title={t('analyze.refresh')}>{t('analyze.refresh')}</button>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
           <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
         </div>

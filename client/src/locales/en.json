@@ -32,7 +32,8 @@
     "reselect": "← Reselect Directory",
     "tabCommits": "Commits",
     "tabCompare": "Branch Compare",
-    "tabLocal": "Local Changes"
+    "tabLocal": "Local Changes",
+    "refresh": "↻ Refresh"
   },
   "local": {
     "commitPlaceholder": "Enter commit message...",

@@ -25,6 +25,24 @@
   letter-spacing: -0.02em;
 }
 
+.refresh-button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.refresh-button:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  color: var(--primary);
+}
+
 .lang-switch {
   background: var(--surface);
   border: 1px solid var(--border);

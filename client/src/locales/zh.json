@@ -32,7 +32,8 @@
     "reselect": "← 重选目录",
     "tabCommits": "提交历史",
     "tabCompare": "分支比较",
-    "tabLocal": "本地修改"
+    "tabLocal": "本地修改",
+    "refresh": "↻ 刷新"
   },
   "local": {
     "commitPlaceholder": "输入提交说明...",
