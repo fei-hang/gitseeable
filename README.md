@@ -34,6 +34,17 @@ A full-stack Git repository visualization tool built with React 19 + Vite 5 (fro
 
 ## Getting Started
 
+### Quick Install (npm global)
+
+```bash
+npm install -g gitseeable
+gitseeable
+```
+
+Open http://localhost:3001 in your browser.
+
+### From Source
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/fei-hang/gitseeable.git
@@ -47,8 +58,22 @@ npm install
 cd client && npm install
 cd ../server && npm install
 
-# 4. Start development (both server:3001 and client:3000)
+# 4. Production build (bundle frontend + backend)
 cd ..
+npm run build
+
+# 5. Start server
+npm start
+# or
+node server/dist/index.js
+```
+
+Open http://localhost:3001 in your browser.
+
+### Development
+
+```bash
+# Install dependencies first (see "From Source" above), then:
 npm run dev
 ```
 

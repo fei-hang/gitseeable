@@ -32,6 +32,17 @@
 
 ## 快速开始
 
+### 全局安装（推荐）
+
+```bash
+npm install -g gitseeable
+gitseeable
+```
+
+打开 http://localhost:3001 即可使用。
+
+### 从源码构建
+
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/fei-hang/gitseeable.git
@@ -45,8 +56,22 @@ npm install
 cd client && npm install
 cd ../server && npm install
 
-# 4. 启动开发服务（server:3001 + client:3000）
+# 4. 生产构建（打包前后端）
 cd ..
+npm run build
+
+# 5. 启动服务
+npm start
+# 或
+node server/dist/index.js
+```
+
+打开 http://localhost:3001 即可使用。
+
+### 开发模式
+
+```bash
+# 先安装依赖（见上方「从源码构建」），然后：
 npm run dev
 ```
 
