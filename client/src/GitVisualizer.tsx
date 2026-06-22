@@ -75,7 +75,7 @@ interface CompareData {
 interface ContextMenuState {
   x: number;
   y: number;
-  items: { label: string; onClick: () => void; danger?: boolean }[];
+  items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[];
 }
 
 interface CommitFileEntry {
@@ -594,11 +594,9 @@ function GitVisualizer() {
   const handleCommitContextMenu = (e: React.MouseEvent, commit: GraphCommit) => {
     e.preventDefault();
     e.stopPropagation();
-    const hasHead = /HEAD/.test(commit.refs);
-    const actions: { label: string; onClick: () => void; danger?: boolean }[] = [];
-    if (!hasHead) {
-      actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash) });
-    }
+    const isHead = /HEAD/.test(commit.refs);
+    const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
+    actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: isHead });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 

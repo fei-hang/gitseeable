@@ -4,6 +4,7 @@ interface ContextMenuItem {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }
 
 interface ContextMenuProps {
@@ -24,8 +25,8 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         {items.map((item, i) => (
           <div
             key={i}
-            className={`context-menu-item${item.danger ? ' context-menu-item--danger' : ''}`}
-            onClick={() => { item.onClick(); onClose(); }}
+            className={`context-menu-item${item.danger ? ' context-menu-item--danger' : ''}${item.disabled ? ' context-menu-item--disabled' : ''}`}
+            onClick={() => { if (!item.disabled) { item.onClick(); onClose(); } }}
           >
             {item.label}
           </div>
