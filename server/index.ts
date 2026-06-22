@@ -286,6 +286,17 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
       }
       finalRows.push(rows[i]);
     }
+    const commitHashes = finalRows.filter(r => r.commit).map(r => r.commit!.hash);
+    const headAncestorResults = await Promise.all(
+      commitHashes.map(h =>
+        git.raw(['merge-base', '--is-ancestor', h, 'HEAD']).then(() => true).catch(() => false)
+      )
+    );
+    const headAncestorMap: Record<string, boolean> = {};
+    commitHashes.forEach((h, i) => { headAncestorMap[h] = headAncestorResults[i]; });
+    for (const row of finalRows) {
+      if (row.commit) (row.commit as any).isOnHeadBranch = headAncestorMap[row.commit.hash] || false;
+    }
     res.json({ rows: finalRows, total, page, pageSize, headHash });
   } catch (error: any) {
     console.error('获取提交图时出错:', error);

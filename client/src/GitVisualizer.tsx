@@ -37,6 +37,7 @@ interface GraphCommit {
   author: string;
   date: string;
   refs: string;
+  isOnHeadBranch: boolean;
 }
 
 interface GraphRow {
@@ -596,9 +597,8 @@ function GitVisualizer() {
   const handleCommitContextMenu = (e: React.MouseEvent, commit: GraphCommit) => {
     e.preventDefault();
     e.stopPropagation();
-    const isHead = commit.hash === headHash;
     const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
-    actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: isHead });
+    actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: commit.isOnHeadBranch });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 
