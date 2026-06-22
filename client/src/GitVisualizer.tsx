@@ -480,15 +480,31 @@ function GitVisualizer() {
       Swal.fire({ icon: 'info', title: t('local.pushNoPending'), timer: 1500, showConfirmButton: false });
       return null;
     }
+    const maxVisible = 8;
+    const needsScroll = commits.length > maxVisible;
+    const hashWidth = 70;
     const rows = commits.map((c: { hash: string; message: string }) =>
-      `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666;white-space:nowrap">${escapeHtml(c.hash.substring(0, 7))}</td><td style="padding:3px 8px;word-break:break-word">${escapeHtml(c.message)}</td></tr>`
+      `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666;white-space:nowrap;width:${hashWidth}px">${escapeHtml(c.hash.substring(0, 7))}</td>`
+      + `<td style="padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%;" title="${escapeHtml(c.message)}">${escapeHtml(c.message)}</td></tr>`
     ).join('');
+    const contentHtml = `<div style="margin-bottom:8px;color:#888;font-size:13px">${t('local.pushConfirmCount', { count: commits.length })}</div>`
+      + `<div${needsScroll ? ' style="max-height:360px;overflow-y:auto"' : ''}><table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table></div>`;
+    const dialogId = 'swal-push-dialog';
     const result = await Swal.fire({
       title: t('local.pushConfirmTitle', { branch }),
-      html: `<div style="margin-bottom:8px;color:#888;font-size:13px">${t('local.pushConfirmCount', { count: commits.length })}</div><table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table>`,
+      html: contentHtml,
+      width: '66%',
       showCancelButton: true,
       confirmButtonText: t('local.pushConfirm'),
       cancelButtonText: t('common.cancel'),
+      customClass: { popup: dialogId },
+      didOpen: () => {
+        const style = document.createElement('style');
+        style.id = dialogId;
+        style.textContent = `.${dialogId}{max-height:80vh!important;}.${dialogId} .swal2-html-container{overflow-y:auto;flex:1;}`;
+        document.head.appendChild(style);
+      },
+      willClose: () => { const el = document.getElementById(dialogId); if (el) el.remove(); },
     });
     return result.isConfirmed ? branch : null;
   };
