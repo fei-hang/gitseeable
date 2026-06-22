@@ -307,10 +307,9 @@ function GitVisualizer() {
     setConflictFiles(null);
     setConflictType(null);
     setConflictTheirsBranch(null);
-    setActiveTab('commits');
     const data = await handleRefreshGitInfo();
     setSelectedBranch(data.currentBranch);
-    await handleLoadGraph();
+    setActiveTab('commits');
   };
 
   const handleConflictResolved = async () => {
@@ -325,10 +324,9 @@ function GitVisualizer() {
         setConflictFiles(null);
         setConflictType(null);
         setConflictTheirsBranch(null);
-        setActiveTab('commits');
         const data = await handleRefreshGitInfo();
         setSelectedBranch(data.currentBranch);
-        await handleLoadGraph();
+        setActiveTab('commits');
       }
     } catch (_) {}
   };
