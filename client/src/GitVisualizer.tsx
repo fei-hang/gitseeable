@@ -145,10 +145,11 @@ function GitVisualizer() {
       setInitialLoading(true);
       await handleLoadDrives();
       try {
-        const lastPath = await getLastPath();
-        if (lastPath) {
-          await handleLoadDirectories(lastPath);
-          await handleDoCheckGit(lastPath);
+        const urlDir = new URLSearchParams(window.location.search).get('dir');
+        const dirPath = urlDir || await getLastPath();
+        if (dirPath) {
+          await handleLoadDirectories(dirPath);
+          await handleDoCheckGit(dirPath);
         }
       } catch (_) { /* ignore */ }
       setInitialLoading(false);
@@ -230,6 +231,9 @@ function GitVisualizer() {
 
       if (data.isGitRepo) {
         saveLastPath(dirPath);
+        const url = new URL(window.location.href);
+        url.searchParams.set('dir', dirPath);
+        window.history.replaceState({}, '', url.toString());
         setSelectedBranch(data.currentBranch);
         setView('analyze');
       }
@@ -298,7 +302,12 @@ function GitVisualizer() {
     handleLoadGraph(1, commitPageSize, undefined);
   };
 
-  const handleReselect = () => setView('select');
+  const handleReselect = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('dir');
+    window.history.replaceState({}, '', url.toString());
+    setView('select');
+  };
 
   const handleCloseContextMenu = () => {
     setContextMenu(null);
