@@ -246,6 +246,8 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
       return res.json({ rows: [], total, page, pageSize });
     }
 
+    const headHash = (await git.raw(['rev-parse', 'HEAD'])).trim();
+
     const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(Boolean);
     const rows: GraphRow[] = [];
     for (const line of lines) {
@@ -284,7 +286,7 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
       }
       finalRows.push(rows[i]);
     }
-    res.json({ rows: finalRows, total, page, pageSize });
+    res.json({ rows: finalRows, total, page, pageSize, headHash });
   } catch (error: any) {
     console.error('获取提交图时出错:', error);
     res.status(500).json({ error: error.message });

@@ -17,6 +17,14 @@ export function fetchCommits(dirPath: string, branch: string, page = 1, pageSize
   return axios.post(`${API_BASE_URL}/api/commits`, { dirPath, branch, page, pageSize }).then(res => res.data);
 }
 
+export interface CommitGraphResponse {
+  rows: { graph: string; commit: { hash: string; parents: string; message: string; author: string; date: string; refs: string } | null }[];
+  total: number;
+  page: number;
+  pageSize: number;
+  headHash: string;
+}
+
 export function fetchCommitGraph(dirPath: string, page = 1, pageSize = COMMITS_PAGE_SIZE, branch?: string) {
   return axios.post(`${API_BASE_URL}/api/commit-graph`, { dirPath, page, pageSize, branch }).then(res => res.data);
 }

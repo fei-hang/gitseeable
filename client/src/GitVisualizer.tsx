@@ -98,6 +98,7 @@ function GitVisualizer() {
   const [commitPage, setCommitPage] = useState(1);
   const [commitPageSize, setCommitPageSize] = useState(50);
   const [graphRows, setGraphRows] = useState<GraphRow[]>([]);
+  const [headHash, setHeadHash] = useState('');
   const [graphLoading, setGraphLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -246,6 +247,7 @@ function GitVisualizer() {
       setGraphRows(data.rows);
       setCommitsTotal(data.total);
       setCommitPage(page);
+      if (data.headHash) setHeadHash(data.headHash);
     } catch (_) {
       setGraphRows([]);
       setCommitsTotal(0);
@@ -594,7 +596,7 @@ function GitVisualizer() {
   const handleCommitContextMenu = (e: React.MouseEvent, commit: GraphCommit) => {
     e.preventDefault();
     e.stopPropagation();
-    const isHead = /HEAD/.test(commit.refs);
+    const isHead = commit.hash === headHash;
     const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
     actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: isHead });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
