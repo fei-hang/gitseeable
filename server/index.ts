@@ -364,14 +364,19 @@ app.post('/api/cherry-pick', async (req: Request, res: Response) => {
     const git = getGit(dirPath);
     await git.raw(['cherry-pick', commitHash]);
     res.json({ ok: true });
-  } catch (error: any) {
+    } catch (error: any) {
     console.error('优选时出错:', error);
-    const git = getGit(req.body.dirPath);
+    const cpGit = getGit(req.body.dirPath);
     try {
-      const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+      const status = await cpGit.raw(['diff', '--name-only', '--diff-filter=U']);
       const files = status.split('\n').filter(Boolean);
       if (files.length > 0) {
-        return res.json({ conflict: true, files, type: 'cherry-pick' });
+        let msg = req.body.commitHash.slice(0, 7);
+        try {
+          const m = await cpGit.raw(['log', '--format=%s', '-1', req.body.commitHash]);
+          if (m) msg += ' ' + m.trim();
+        } catch (_) {}
+        return res.json({ conflict: true, files, type: 'cherry-pick', theirsBranch: msg });
       }
     } catch (_) {}
     res.status(500).json({ error: error.message });
@@ -572,7 +577,12 @@ app.post('/api/conflict-files', async (req: Request, res: Response) => {
           theirsBranch = headRef.trim().replace('refs/heads/', '');
         } else if (type === 'cherry-pick') {
           const cherryHash = await fs.promises.readFile(path.join(gitDir, 'CHERRY_PICK_HEAD'), 'utf-8');
-          theirsBranch = cherryHash.trim().slice(0, 7);
+          const hash = cherryHash.trim();
+          let msg = '';
+          try {
+            msg = await git.raw(['log', '--format=%s', '-1', hash]);
+          } catch (_) {}
+          theirsBranch = (hash.slice(0, 7) + ' ' + (msg?.trim() || '')).trim();
         }
       } catch (_) {}
     }

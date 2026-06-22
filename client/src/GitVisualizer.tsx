@@ -606,7 +606,7 @@ function GitVisualizer() {
       if (res.conflict) {
         setConflictFiles(res.files);
         setConflictType('cherry-pick');
-        setConflictTheirsBranch(commitHash.slice(0, 7));
+        setConflictTheirsBranch(res.theirsBranch || commitHash.slice(0, 7));
         setActiveTab('conflicts');
         return;
       }
