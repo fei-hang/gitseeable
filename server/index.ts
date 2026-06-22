@@ -595,11 +595,18 @@ app.post('/api/conflict-file-content', async (req: Request, res: Response) => {
     if (!dirPath || !filePath) return res.status(400).json({ error: '缺少参数' });
     const git = getGit(dirPath);
     let ours = '', theirs = '';
-    try { ours = await git.raw(['show', ':2:' + filePath]); } catch (_) { ours = ''; }
-    try { theirs = await git.raw(['show', ':3:' + filePath]); } catch (_) { theirs = ''; }
+    let oursOk = true, theirsOk = true;
+    try { ours = await git.raw(['show', ':2:' + filePath]); } catch (_) { oursOk = false; }
+    try { theirs = await git.raw(['show', ':3:' + filePath]); } catch (_) { theirsOk = false; }
+    if (!oursOk) {
+      try { ours = await git.raw(['show', ':1:' + filePath]); } catch (_) { ours = ''; }
+    }
+    if (!theirsOk) {
+      try { theirs = await git.raw(['show', ':1:' + filePath]); } catch (_) { theirs = ''; }
+    }
     const hunks: HunkInfo[] = [];
     try {
-      const diff = await git.raw(['diff', '--unified=0', `:2:${filePath}`, `:3:${filePath}`]);
+      const diff = await git.raw(['diff', '--unified=0', `:${oursOk ? '2' : '1'}:${filePath}`, `:3:${filePath}`]);
       const hunkRegex = /@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/g;
       let m: RegExpExecArray | null;
       while ((m = hunkRegex.exec(diff)) !== null) {

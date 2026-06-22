@@ -176,7 +176,8 @@
     "resolve": "解决此文件冲突",
     "resolveAll": "全部解决",
     "resolveSuccess": "冲突已解决",
-    "allResolved": "所有冲突已解决"
+    "allResolved": "所有冲突已解决",
+    "noDiff": "文件当前分支已删除，无法显示差异"
   },
   "error": {
     "loadDrives": "加载盘符失败: {{msg}}",

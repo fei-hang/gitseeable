@@ -176,7 +176,8 @@
     "resolve": "Resolve This File",
     "resolveAll": "Resolve All",
     "resolveSuccess": "Conflict resolved",
-    "allResolved": "All conflicts resolved"
+    "allResolved": "All conflicts resolved",
+    "noDiff": "File deleted in current branch, cannot show diff"
   },
   "error": {
     "loadDrives": "Failed to load drives: {{msg}}",

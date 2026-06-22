@@ -335,8 +335,18 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
             <div className="conflict-diff-empty">{t('conflict.selectFile')}</div>
           ) : loading ? (
             <div className="conflict-diff-loading">{t('common.loading')}</div>
+          ) : ours === '' && theirs ? (
+            <div className="conflict-diff-view">
+              <div className="conflict-diff-header">
+                <div className="conflict-diff-label">{currentBranch || t('conflict.ours')}</div>
+                <div className="conflict-diff-label">{theirsBranch || t('conflict.theirs')}</div>
+              </div>
+              <div className="conflict-diff-body">
+                <pre className="conflict-diff-theirs-only">{theirs}</pre>
+              </div>
+            </div>
           ) : rows.length === 0 ? (
-            <div className="conflict-diff-empty">{t('common.loading')}</div>
+            <div className="conflict-diff-empty">{t('conflict.noDiff')}</div>
           ) : (
             <div className="conflict-diff-view">
               <div className="conflict-diff-header">
