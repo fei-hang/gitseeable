@@ -413,6 +413,14 @@ app.post('/api/revert-commit', async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (error: any) {
     console.error('还原时出错:', error);
+    const rvGit = getGit(req.body.dirPath);
+    try {
+      const status = await rvGit.raw(['diff', '--name-only', '--diff-filter=U']);
+      const files = status.split('\n').filter(Boolean);
+      if (files.length > 0) {
+        return res.json({ conflict: true, files, type: 'revert' });
+      }
+    } catch (_) {}
     res.status(500).json({ error: error.message });
   }
 });
@@ -676,9 +684,15 @@ app.post('/api/abort-merge', async (req: Request, res: Response) => {
     const git = getGit(dirPath);
     const gitDir = path.join(dirPath, '.git');
     let isCherryPick = false;
+    let isRevert = false;
     try { await fs.promises.access(path.join(gitDir, 'CHERRY_PICK_HEAD')); isCherryPick = true; } catch (_) {}
+    if (!isCherryPick) {
+      try { await fs.promises.access(path.join(gitDir, 'REVERT_HEAD')); isRevert = true; } catch (_) {}
+    }
     if (isCherryPick) {
       await git.raw(['cherry-pick', '--abort']);
+    } else if (isRevert) {
+      await git.raw(['revert', '--abort']);
     } else {
       try {
         await git.raw(['merge', '--abort']);
@@ -718,14 +732,20 @@ app.post('/api/continue-merge', async (req: Request, res: Response) => {
     const gitDir = path.join(dirPath, '.git');
     let isMerge = false;
     let isCherryPick = false;
+    let isRevert = false;
     try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); isMerge = true; } catch (_) {}
     if (!isMerge) {
       try { await fs.promises.access(path.join(gitDir, 'CHERRY_PICK_HEAD')); isCherryPick = true; } catch (_) {}
+    }
+    if (!isMerge && !isCherryPick) {
+      try { await fs.promises.access(path.join(gitDir, 'REVERT_HEAD')); isRevert = true; } catch (_) {}
     }
     if (isMerge) {
       await git.raw(['commit', '--no-edit']);
     } else if (isCherryPick) {
       await git.raw(['cherry-pick', '--continue']);
+    } else if (isRevert) {
+      await git.raw(['revert', '--continue']);
     } else {
       await git.env('GIT_EDITOR', 'true').env('GIT_SEQUENCE_EDITOR', 'true').raw(['rebase', '--continue']);
     }
