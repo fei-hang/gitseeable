@@ -110,7 +110,8 @@
     "rename": "重命名",
     "delete": "删除",
     "cherryPick": "优选此提交",
-    "revert": "还原此提交"
+    "revert": "还原此提交",
+    "drop": "删除此提交"
   },
   "dialog": {
     "createBranch": {
@@ -160,6 +161,13 @@
     "revert": {
       "success": "还原成功",
       "fail": "还原失败"
+    },
+    "drop": {
+      "title": "确认删除提交",
+      "text": "确定要删除提交 {{hash}}（{{msg}}）吗？此操作会重写分支历史。",
+      "confirm": "删除",
+      "success": "删除成功",
+      "fail": "删除失败"
     },
     "conflict": "冲突",
     "conflictTitle": "合并冲突",

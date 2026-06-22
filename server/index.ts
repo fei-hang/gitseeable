@@ -425,6 +425,22 @@ app.post('/api/revert-commit', async (req: Request, res: Response) => {
   }
 });
 
+// 删除提交 (drop commit)
+app.post('/api/drop-commit', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, commitHash, parentHash, branch } = req.body;
+    if (!dirPath || !commitHash || !parentHash || !branch) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    await git.raw(['rebase', '--onto', parentHash, commitHash, branch]);
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('删除提交时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 重命名分支
 app.post('/api/rename-branch', async (req: Request, res: Response) => {
   try {

@@ -110,7 +110,8 @@
     "rename": "Rename",
     "delete": "Delete",
     "cherryPick": "Cherry-pick",
-    "revert": "Revert commit"
+    "revert": "Revert commit",
+    "drop": "Delete commit"
   },
   "dialog": {
     "createBranch": {
@@ -160,6 +161,13 @@
     "revert": {
       "success": "Revert successful",
       "fail": "Revert failed"
+    },
+    "drop": {
+      "title": "Confirm Delete Commit",
+      "text": "Delete commit {{hash}} ({{msg}})? This will rewrite branch history.",
+      "confirm": "Delete",
+      "success": "Commit deleted",
+      "fail": "Failed to delete commit"
     },
     "conflict": "Conflict",
     "conflictTitle": "Merge Conflict",

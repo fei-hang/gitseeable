@@ -85,6 +85,10 @@ export function revertCommit(dirPath: string, commitHash: string) {
   return axios.post(`${API_BASE_URL}/api/revert-commit`, { dirPath, commitHash }).then(res => res.data);
 }
 
+export function dropCommit(dirPath: string, commitHash: string, parentHash: string, branch: string) {
+  return axios.post(`${API_BASE_URL}/api/drop-commit`, { dirPath, commitHash, parentHash, branch }).then(res => res.data);
+}
+
 export function rebaseBranch(dirPath: string, targetBranch: string) {
   return axios.post(`${API_BASE_URL}/api/rebase-branch`, { dirPath, targetBranch }).then(res => res.data);
 }
