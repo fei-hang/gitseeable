@@ -604,7 +604,14 @@ function GitVisualizer() {
 
   const handleCherryPick = async (commitHash: string) => {
     try {
-      await cherryPickCommit(currentPath, commitHash);
+      const res = await cherryPickCommit(currentPath, commitHash);
+      if (res.conflict) {
+        setConflictFiles(res.files);
+        setConflictType('cherry-pick');
+        setConflictTheirsBranch(commitHash.slice(0, 7));
+        setActiveTab('conflicts');
+        return;
+      }
       Swal.fire({ icon: 'success', title: t('dialog.cherryPick.success'), timer: 2000, showConfirmButton: false });
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);

@@ -350,6 +350,14 @@ app.post('/api/cherry-pick', async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (error: any) {
     console.error('优选时出错:', error);
+    const git = getGit(req.body.dirPath);
+    try {
+      const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+      const files = status.split('\n').filter(Boolean);
+      if (files.length > 0) {
+        return res.json({ conflict: true, files, type: 'cherry-pick' });
+      }
+    } catch (_) {}
     res.status(500).json({ error: error.message });
   }
 });
@@ -534,15 +542,21 @@ app.post('/api/conflict-files', async (req: Request, res: Response) => {
       if (!type) {
         try { await fs.promises.access(path.join(gitDir, 'rebase-apply')); type = 'rebase'; } catch (_) {}
       }
+      if (!type) {
+        try { await fs.promises.access(path.join(gitDir, 'CHERRY_PICK_HEAD')); type = 'cherry-pick'; } catch (_) {}
+      }
       if (!type) type = 'merge';
       try {
         if (type === 'merge') {
           const mergeMsg = await fs.promises.readFile(path.join(gitDir, 'MERGE_MSG'), 'utf-8');
           const m = mergeMsg.match(/^Merge branch ['"]([^'"]+)/);
           if (m) theirsBranch = m[1];
-        } else {
+        } else if (type === 'rebase') {
           const headRef = await fs.promises.readFile(path.join(gitDir, 'rebase-merge', 'head-name'), 'utf-8');
           theirsBranch = headRef.trim().replace('refs/heads/', '');
+        } else if (type === 'cherry-pick') {
+          const cherryHash = await fs.promises.readFile(path.join(gitDir, 'CHERRY_PICK_HEAD'), 'utf-8');
+          theirsBranch = cherryHash.trim().slice(0, 7);
         }
       } catch (_) {}
     }
@@ -597,7 +611,11 @@ app.post('/api/abort-merge', async (req: Request, res: Response) => {
     try {
       await git.raw(['merge', '--abort']);
     } catch (_) {
-      await git.raw(['rebase', '--abort']);
+      try {
+        await git.raw(['rebase', '--abort']);
+      } catch (_) {
+        await git.raw(['cherry-pick', '--abort']);
+      }
     }
     res.json({ ok: true });
   } catch (error: any) {
@@ -630,9 +648,15 @@ app.post('/api/continue-merge', async (req: Request, res: Response) => {
     const git = getGit(dirPath);
     const gitDir = path.join(dirPath, '.git');
     let isMerge = false;
+    let isCherryPick = false;
     try { await fs.promises.access(path.join(gitDir, 'MERGE_HEAD')); isMerge = true; } catch (_) {}
+    if (!isMerge) {
+      try { await fs.promises.access(path.join(gitDir, 'CHERRY_PICK_HEAD')); isCherryPick = true; } catch (_) {}
+    }
     if (isMerge) {
       await git.raw(['commit', '--no-edit']);
+    } else if (isCherryPick) {
+      await git.raw(['cherry-pick', '--continue']);
     } else {
       await git.env('GIT_EDITOR', 'true').env('GIT_SEQUENCE_EDITOR', 'true').raw(['rebase', '--continue']);
     }

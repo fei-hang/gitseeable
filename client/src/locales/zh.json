@@ -167,6 +167,8 @@
     "fileCount": "共 {{count}} 个冲突文件",
     "abortMerge": "取消合并",
     "abortRebase": "取消变基",
+    "abortCherryPick": "取消优选",
+    "titleCherryPick": "优选冲突",
     "selectFile": "请选择一个冲突文件",
     "ours": "当前分支",
     "theirs": "合并目标分支",

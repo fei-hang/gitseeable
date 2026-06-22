@@ -299,7 +299,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
   return (
     <div className="conflict-view">
       <div className="conflict-header">
-        <span className="conflict-title">{conflictType === 'merge' ? t('conflict.titleMerge') : t('conflict.titleRebase')}</span>
+        <span className="conflict-title">{conflictType === 'merge' ? t('conflict.titleMerge') : conflictType === 'cherry-pick' ? t('conflict.titleCherryPick') : t('conflict.titleRebase')}</span>
         <span className="conflict-file-count">{t('conflict.fileCount', { count: conflictFiles.length })}</span>
         <div className="conflict-header-actions">
           <button className="btn btn--primary" disabled={!allResolved || resolving} onClick={handleResolve}>
@@ -309,7 +309,7 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
             {resolvingAll ? t('common.loading') : t('conflict.resolveAll')}
           </button>
           <button className="btn btn--danger" disabled={aborting} onClick={handleAbort}>
-            {aborting ? t('common.loading') : (conflictType === 'merge' ? t('conflict.abortMerge') : t('conflict.abortRebase'))}
+            {aborting ? t('common.loading') : (conflictType === 'merge' ? t('conflict.abortMerge') : conflictType === 'cherry-pick' ? t('conflict.abortCherryPick') : t('conflict.abortRebase'))}
           </button>
         </div>
       </div>

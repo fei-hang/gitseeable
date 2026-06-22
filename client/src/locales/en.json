@@ -167,6 +167,8 @@
     "fileCount": "{{count}} conflicted file(s)",
     "abortMerge": "Abort Merge",
     "abortRebase": "Abort Rebase",
+    "abortCherryPick": "Abort Cherry-pick",
+    "titleCherryPick": "Cherry-pick Conflict",
     "selectFile": "Select a conflicted file",
     "ours": "Current Branch",
     "theirs": "Incoming Branch",
