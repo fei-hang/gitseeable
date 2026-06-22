@@ -70,7 +70,8 @@
     "pushCancel": "已取消推送",
     "pushNoPending": "没有待推送的提交",
     "pushConfirmTitle": "将推送到 {{branch}}",
-    "pushConfirmCount": "共 {{count}} 个提交"
+    "pushConfirmCount": "共 {{count}} 个提交",
+    "pushInProgress": "正在推送中..."
   },
   "branch": {
     "local": "本地分支",

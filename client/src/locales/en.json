@@ -70,7 +70,8 @@
     "pushCancel": "Push cancelled",
     "pushNoPending": "No pending commits to push",
     "pushConfirmTitle": "Push to {{branch}}",
-    "pushConfirmCount": "{{count}} commits to push"
+    "pushConfirmCount": "{{count}} commits to push",
+    "pushInProgress": "Pushing..."
   },
   "branch": {
     "local": "Local Branches",
@@ -105,7 +106,7 @@
     "merge": "Merge {{branch}} into {{current}}",
     "rebase": "Rebase {{current}} onto {{branch}}",
     "compare": "Compare {{branch}} with {{current}}",
-    "fetch": "Fetch",
+    "fetch": "Pull",
     "push": "Push",
     "rename": "Rename",
     "delete": "Delete",

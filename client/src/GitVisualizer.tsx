@@ -490,7 +490,7 @@ function GitVisualizer() {
     const contentHtml = `<div style="margin-bottom:8px;color:#888;font-size:13px">${t('local.pushConfirmCount', { count: commits.length })}</div>`
       + `<div${needsScroll ? ' style="max-height:360px;overflow-y:auto"' : ''}><table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table></div>`;
     const dialogId = 'swal-push-dialog';
-    const result = await Swal.fire({
+    const { isConfirmed } = await Swal.fire({
       title: t('local.pushConfirmTitle', { branch }),
       html: contentHtml,
       width: '66%',
@@ -506,22 +506,37 @@ function GitVisualizer() {
       },
       willClose: () => { const el = document.getElementById(dialogId); if (el) el.remove(); },
     });
-    return result.isConfirmed ? branch : null;
+    if (!isConfirmed) return null;
+
+    const progressHtml = `<div style="text-align:center;padding:20px"><div class="swal2-loading-spinner" style="margin:0 auto"></div><p style="margin-top:16px;color:var(--text-secondary);font-size:14px">${t('local.pushInProgress')}</p></div>`;
+    const swalInstance = Swal.fire({
+      title: t('local.pushConfirmTitle', { branch }),
+      html: progressHtml,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      showCancelButton: false,
+    });
+    try {
+      await pushBranch(currentPath, branch);
+      Swal.update({ icon: 'success', title: i18n.t('dialog.push.success', { branch }), html: '', showConfirmButton: false });
+      await new Promise(r => setTimeout(r, 1500));
+      Swal.close();
+      await swalInstance;
+      return branch;
+    } catch (err: any) {
+      Swal.update({ icon: 'error', title: i18n.t('dialog.push.fail'), html: `<p style="text-align:center;color:var(--danger)">${escapeHtml(err.response?.data?.error || err.message)}</p>`, showConfirmButton: true, confirmButtonText: t('common.ok') });
+      await swalInstance;
+      return null;
+    }
   };
 
   const handlePushBranch = async (branch: string) => {
     setLoading(true);
     try {
       const confirmed = await confirmPushDialog(branch);
-      if (!confirmed) return;
-      await pushBranch(currentPath, branch);
-      Swal.fire({ icon: 'success', title: i18n.t('dialog.push.success', { branch }), timer: 2000, showConfirmButton: false });
-      await handleRefreshGitInfo();
-    } catch (err: any) {
-      Swal.fire({ icon: 'error', title: i18n.t('dialog.push.fail'), text: err.response?.data?.error || err.message });
-    } finally {
-      setLoading(false);
-    }
+      if (confirmed) await handleRefreshGitInfo();
+    } catch { /* ignore */ }
+    setLoading(false);
   };
 
   const handleFetch = async () => {
