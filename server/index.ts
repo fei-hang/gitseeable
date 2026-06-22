@@ -288,9 +288,12 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
     }
     const commitHashes = finalRows.filter(r => r.commit).map(r => r.commit!.hash);
     const headAncestorResults = await Promise.all(
-      commitHashes.map(h =>
-        git.raw(['merge-base', '--is-ancestor', h, 'HEAD']).then(() => true).catch(() => false)
-      )
+      commitHashes.map(async h => {
+        try {
+          const base = await git.raw(['merge-base', 'HEAD', h]);
+          return base.trim() === h;
+        } catch { return false; }
+      })
     );
     const headAncestorMap: Record<string, boolean> = {};
     commitHashes.forEach((h, i) => { headAncestorMap[h] = headAncestorResults[i]; });
