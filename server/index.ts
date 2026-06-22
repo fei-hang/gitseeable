@@ -608,13 +608,16 @@ app.post('/api/abort-merge', async (req: Request, res: Response) => {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
     const git = getGit(dirPath);
-    try {
-      await git.raw(['merge', '--abort']);
-    } catch (_) {
+    const gitDir = path.join(dirPath, '.git');
+    let isCherryPick = false;
+    try { await fs.promises.access(path.join(gitDir, 'CHERRY_PICK_HEAD')); isCherryPick = true; } catch (_) {}
+    if (isCherryPick) {
+      await git.raw(['cherry-pick', '--abort']);
+    } else {
       try {
-        await git.raw(['rebase', '--abort']);
+        await git.raw(['merge', '--abort']);
       } catch (_) {
-        await git.raw(['cherry-pick', '--abort']);
+        await git.raw(['rebase', '--abort']);
       }
     }
     res.json({ ok: true });
