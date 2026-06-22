@@ -234,6 +234,8 @@ function GitVisualizer() {
         const url = new URL(window.location.href);
         url.searchParams.set('dir', dirPath);
         window.history.replaceState({}, '', url.toString());
+        const dirName = dirPath.split(/[/\\]/).filter(Boolean).pop();
+        document.title = `Git 仓库可视化工具 - ${dirName || dirPath}`;
         setSelectedBranch(data.currentBranch);
         setView('analyze');
       }
@@ -306,6 +308,7 @@ function GitVisualizer() {
     const url = new URL(window.location.href);
     url.searchParams.delete('dir');
     window.history.replaceState({}, '', url.toString());
+    document.title = 'Git 仓库可视化工具';
     setView('select');
   };
 
