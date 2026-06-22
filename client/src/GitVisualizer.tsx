@@ -534,7 +534,10 @@ function GitVisualizer() {
     setLoading(true);
     try {
       const confirmed = await confirmPushDialog(branch);
-      if (confirmed) await handleRefreshGitInfo();
+      if (confirmed) {
+        await handleRefreshGitInfo();
+        await handleLoadGraph();
+      }
     } catch { /* ignore */ }
     setLoading(false);
   };
