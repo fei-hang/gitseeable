@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import './ContextMenu.css';
 
 interface ContextMenuItem {
@@ -15,6 +16,12 @@ interface ContextMenuProps {
 }
 
 function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   return (
     <>
       <div className="context-menu-backdrop" onClick={onClose} />
