@@ -174,7 +174,10 @@ function GitVisualizer() {
   useEffect(() => { queueSaveUiState({ activeTab }); }, [activeTab, queueSaveUiState]);
   useEffect(() => { queueSaveUiState({ sidebarWidth }); }, [sidebarWidth, queueSaveUiState]);
   useEffect(() => { queueSaveUiState({ theme }); }, [theme, queueSaveUiState]);
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.swal2Theme = theme;
+  }, [theme]);
 
   const handleLoadDrives = async () => {
     try {
