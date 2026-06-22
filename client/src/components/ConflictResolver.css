@@ -163,6 +163,16 @@
   white-space: nowrap;
 }
 
+.conflict-diff-label--clickable {
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.conflict-diff-label--clickable:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
 .conflict-diff-label:first-child {
   border-right: 1px solid var(--border);
 }

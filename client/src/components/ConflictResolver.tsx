@@ -277,6 +277,33 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
     return sel?.ours || sel?.theirs;
   });
 
+  const handleBranchSelect = useCallback((side: 'ours' | 'theirs') => {
+    if (!selectedFile) return;
+    setSelectionsByFile(prev => {
+      const fileSelections = { ...(prev[selectedFile] || {}) };
+      const allSelected = rows.every(r => fileSelections[r.rowIdx]?.[side] === true);
+      return {
+        ...prev,
+        [selectedFile]: Object.fromEntries(rows.map(r => {
+          const cur = fileSelections[r.rowIdx] || { ours: false, theirs: false, first: null };
+          if (allSelected) {
+            if (!cur[side]) return [r.rowIdx, cur];
+            const next = { ...cur, [side]: false };
+            const { ours, theirs } = next;
+            if (!ours && !theirs) return null;
+            next.first = !ours && theirs ? 'theirs' : ours && !theirs ? 'ours' : '';
+            return [r.rowIdx, next];
+          }
+          if (cur[side]) return [r.rowIdx, cur];
+          const next = { ...cur, [side]: true };
+          const { ours, theirs } = next;
+          next.first = ours && !theirs ? 'ours' : !ours && theirs ? 'theirs' : (cur.first || side);
+          return [r.rowIdx, next];
+        }).filter(Boolean))
+      };
+    });
+  }, [selectedFile, rows]);
+
   const fileAllSelected = useCallback((file: string): boolean => {
     const fileData = loadedContent.current[file];
     if (!fileData) return false;
@@ -336,22 +363,22 @@ export default function ConflictResolver({ currentPath, currentBranch, conflictF
           ) : loading ? (
             <div className="conflict-diff-loading">{t('common.loading')}</div>
           ) : ours === '' && theirs ? (
-            <div className="conflict-diff-view">
-              <div className="conflict-diff-header">
-                <div className="conflict-diff-label">{currentBranch || t('conflict.ours')}</div>
-                <div className="conflict-diff-label">{theirsBranch || t('conflict.theirs')}</div>
+              <div className="conflict-diff-view">
+                <div className="conflict-diff-header">
+                  <div className="conflict-diff-label conflict-diff-label--clickable" onClick={() => handleBranchSelect('ours')}>{currentBranch || t('conflict.ours')}</div>
+                  <div className="conflict-diff-label conflict-diff-label--clickable" onClick={() => handleBranchSelect('theirs')}>{theirsBranch || t('conflict.theirs')}</div>
+                </div>
+                <div className="conflict-diff-body">
+                  <pre className="conflict-diff-theirs-only">{theirs}</pre>
+                </div>
               </div>
-              <div className="conflict-diff-body">
-                <pre className="conflict-diff-theirs-only">{theirs}</pre>
-              </div>
-            </div>
           ) : rows.length === 0 ? (
             <div className="conflict-diff-empty">{t('conflict.noDiff')}</div>
           ) : (
             <div className="conflict-diff-view">
               <div className="conflict-diff-header">
-                <div className="conflict-diff-label">{currentBranch || t('conflict.ours')}</div>
-                <div className="conflict-diff-label">{theirsBranch || t('conflict.theirs')}</div>
+                <div className="conflict-diff-label conflict-diff-label--clickable" onClick={() => handleBranchSelect('ours')}>{currentBranch || t('conflict.ours')}</div>
+                <div className="conflict-diff-label conflict-diff-label--clickable" onClick={() => handleBranchSelect('theirs')}>{theirsBranch || t('conflict.theirs')}</div>
               </div>
               <div className="conflict-diff-body">
                 <div className="conflict-diff-rows">
