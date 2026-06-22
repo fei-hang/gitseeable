@@ -651,16 +651,22 @@ function GitVisualizer() {
     if (!branch) return;
     const parentHash = commit.parents?.split(' ')[0];
     if (!parentHash) return;
-    const result = await Swal.fire({
-      title: t('dialog.drop.title'),
-      text: t('dialog.drop.text', { hash: commit.hash.slice(0, 7), msg: commit.message }),
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonText: t('common.cancel'),
-      confirmButtonText: t('dialog.drop.confirm'),
-    });
-    if (!result.isConfirmed) return;
+    if (localStorage.getItem('skipDropConfirm') !== 'true') {
+      const result = await Swal.fire({
+        title: t('dialog.drop.title'),
+        text: t('dialog.drop.text', { hash: commit.hash.slice(0, 7), msg: commit.message }),
+        icon: 'warning',
+        input: 'checkbox',
+        inputValue: 0,
+        inputPlaceholder: t('dialog.drop.dontAskAgain'),
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonText: t('common.cancel'),
+        confirmButtonText: t('dialog.drop.confirm'),
+      });
+      if (!result.isConfirmed) return;
+      if (result.value) localStorage.setItem('skipDropConfirm', 'true');
+    }
     try {
       await dropCommit(currentPath, commit.hash, parentHash, branch);
       Swal.fire({ icon: 'success', title: t('dialog.drop.success'), timer: 2000, showConfirmButton: false });

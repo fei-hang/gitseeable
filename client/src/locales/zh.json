@@ -166,6 +166,7 @@
       "title": "确认删除提交",
       "text": "确定要删除提交 {{hash}}（{{msg}}）吗？此操作会重写分支历史。",
       "confirm": "删除",
+      "dontAskAgain": "之后不再询问",
       "success": "删除成功",
       "fail": "删除失败"
     },
