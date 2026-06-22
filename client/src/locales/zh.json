@@ -108,7 +108,8 @@
     "fetch": "更新",
     "push": "推送",
     "rename": "重命名",
-    "delete": "删除"
+    "delete": "删除",
+    "cherryPick": "优选此提交"
   },
   "dialog": {
     "createBranch": {
@@ -151,6 +152,10 @@
     "compareFail": "比较失败",
     "diffFail": "加载失败",
     "rebaseFail": "变基失败",
+    "cherryPick": {
+      "success": "优选成功",
+      "fail": "优选失败"
+    },
     "conflict": "冲突",
     "conflictTitle": "合并冲突",
     "conflictMergeFail": "合并失败，存在冲突",

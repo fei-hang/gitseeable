@@ -338,6 +338,22 @@ app.post('/api/merge-branch', async (req: Request, res: Response) => {
   }
 });
 
+// 优选（cherry-pick）
+app.post('/api/cherry-pick', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, commitHash } = req.body;
+    if (!dirPath || !commitHash) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    await git.raw(['cherry-pick', commitHash]);
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('优选时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 重命名分支
 app.post('/api/rename-branch', async (req: Request, res: Response) => {
   try {

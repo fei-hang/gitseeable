@@ -13,7 +13,8 @@ import {
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
   stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
-  fetchConflictFiles, continueMerge
+  fetchConflictFiles, continueMerge,
+  cherryPickCommit
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -590,6 +591,29 @@ function GitVisualizer() {
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 
+  const handleCommitContextMenu = (e: React.MouseEvent, commit: GraphCommit) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const hasHead = /HEAD/.test(commit.refs);
+    const actions: { label: string; onClick: () => void; danger?: boolean }[] = [];
+    if (!hasHead) {
+      actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash) });
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
+  };
+
+  const handleCherryPick = async (commitHash: string) => {
+    try {
+      await cherryPickCommit(currentPath, commitHash);
+      Swal.fire({ icon: 'success', title: t('dialog.cherryPick.success'), timer: 2000, showConfirmButton: false });
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+      await handleLoadGraph();
+    } catch (err: any) {
+      Swal.fire({ icon: 'error', title: t('dialog.cherryPick.fail'), text: err.response?.data?.error || err.message });
+    }
+  };
+
   const loadFileDiff = async (filePath: string, type: string) => {
     setLocalFileDiffLoading(true);
     try {
@@ -1151,7 +1175,7 @@ function GitVisualizer() {
                       if (!row.commit) return null;
                       const c = row.commit;
                       return (
-                        <div key={c.hash} className="commit-item">
+                        <div key={c.hash} className="commit-item" onContextMenu={(e) => handleCommitContextMenu(e, c)}>
                           <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
                               <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
                               <div className="commit-meta">

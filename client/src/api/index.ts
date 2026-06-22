@@ -69,6 +69,10 @@ export function fetchCommitFileDiff(dirPath: string, commitHash: string, filePat
   return axios.post(`${API_BASE_URL}/api/commit-file-diff`, { dirPath, commitHash, filePath }).then(res => res.data);
 }
 
+export function cherryPickCommit(dirPath: string, commitHash: string) {
+  return axios.post(`${API_BASE_URL}/api/cherry-pick`, { dirPath, commitHash }).then(res => res.data);
+}
+
 export function rebaseBranch(dirPath: string, targetBranch: string) {
   return axios.post(`${API_BASE_URL}/api/rebase-branch`, { dirPath, targetBranch }).then(res => res.data);
 }
