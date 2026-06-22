@@ -371,7 +371,13 @@ app.post('/api/cherry-pick', async (req: Request, res: Response) => {
       const status = await cpGit.raw(['diff', '--name-only', '--diff-filter=U']);
       const files = status.split('\n').filter(Boolean);
       if (files.length > 0) {
-        return res.json({ conflict: true, files, type: 'cherry-pick' });
+        let theirsBranch = '';
+        try {
+          const branches = await cpGit.raw(['branch', '--contains', req.body.commitHash]);
+          const names = branches.split('\n').map((l: string) => l.trim().replace(/^\*?\s*/, '')).filter(Boolean);
+          theirsBranch = names[0] || '';
+        } catch (_) {}
+        return res.json({ conflict: true, files, type: 'cherry-pick', theirsBranch });
       }
     } catch (_) {}
     res.status(500).json({ error: error.message });
@@ -573,8 +579,9 @@ app.post('/api/conflict-files', async (req: Request, res: Response) => {
         } else if (type === 'cherry-pick') {
           try {
             const hash = (await fs.promises.readFile(path.join(gitDir, 'CHERRY_PICK_HEAD'), 'utf-8')).trim();
-            const name = await git.raw(['name-rev', '--name-only', hash]);
-            theirsBranch = name?.trim() || hash.slice(0, 7);
+            const branches = await git.raw(['branch', '--contains', hash]);
+            const names = branches.split('\n').map(l => l.trim().replace(/^\*?\s*/, '')).filter(Boolean);
+            theirsBranch = names[0] || hash.slice(0, 7);
           } catch (_) { theirsBranch = ''; }
         }
       } catch (_) {}
