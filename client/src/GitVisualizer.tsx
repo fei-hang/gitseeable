@@ -139,6 +139,7 @@ function GitVisualizer() {
   const [conflictFiles, setConflictFiles] = useState<string[] | null>(null);
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictTheirsBranch, setConflictTheirsBranch] = useState<string | null>(null);
+  const [skipDropConfirm, setSkipDropConfirm] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -159,6 +160,7 @@ function GitVisualizer() {
       if (typeof s.sidebarWidth === 'number') setSidebarWidth(s.sidebarWidth);
       if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
       if (s.theme) setTheme(s.theme);
+      if (s.skipDropConfirm) setSkipDropConfirm(true);
     }).catch(() => {});
   }, []);
 
@@ -651,7 +653,7 @@ function GitVisualizer() {
     if (!branch) return;
     const parentHash = commit.parents?.split(' ')[0];
     if (!parentHash) return;
-    if (localStorage.getItem('skipDropConfirm') !== 'true') {
+    if (!skipDropConfirm) {
       const result = await Swal.fire({
         title: t('dialog.drop.title'),
         text: t('dialog.drop.text', { hash: commit.hash.slice(0, 7), msg: commit.message }),
@@ -665,7 +667,10 @@ function GitVisualizer() {
         confirmButtonText: t('dialog.drop.confirm'),
       });
       if (!result.isConfirmed) return;
-      if (result.value) localStorage.setItem('skipDropConfirm', 'true');
+      if (result.value) {
+        setSkipDropConfirm(true);
+        queueSaveUiState({ skipDropConfirm: true });
+      }
     }
     try {
       await dropCommit(currentPath, commit.hash, parentHash, branch);

@@ -4,6 +4,17 @@
 
 Full-stack Git repo visualizer (React 19 + Vite 5 + TypeScript frontend, Express 5 + TypeScript backend, `simple-git`). No database; state persisted to `server/state.json` (gitignored). Windows-only drive enumeration.
 
+## Persistence
+
+All persistent state goes through the server's `state.json` file. **No localStorage, sessionStorage, or client-side storage.** Two server endpoints handle persistence:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/ui-state` → `fetchUiState()` | Load UI prefs on mount (activeTab, sidebarWidth, lang, theme, skipDropConfirm, etc.) |
+| `POST /api/ui-state` → `saveUiState(partial)` | Save via debounced `queueSaveUiState` |
+
+Client never writes to `state.json` directly — always through these API calls.
+
 ## Git config (local, this repo only)
 
 - `user.name = 张飞航`, `user.email = feihangzhang@163.com`
