@@ -481,7 +481,7 @@ function GitVisualizer() {
       return null;
     }
     const rows = commits.map((c: { hash: string; message: string }) =>
-      `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666">${escapeHtml(c.hash.substring(0, 7))}</td><td style="padding:3px 8px">${escapeHtml(c.message)}</td></tr>`
+      `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666;white-space:nowrap">${escapeHtml(c.hash.substring(0, 7))}</td><td style="padding:3px 8px;word-break:break-word">${escapeHtml(c.message)}</td></tr>`
     ).join('');
     const result = await Swal.fire({
       title: t('local.pushConfirmTitle', { branch }),
