@@ -485,7 +485,7 @@ function GitVisualizer() {
     const hashWidth = 70;
     const rows = commits.map((c: { hash: string; message: string }) =>
       `<tr><td style="font-family:monospace;font-size:12px;padding:3px 8px;color:#666;white-space:nowrap;width:${hashWidth}px">${escapeHtml(c.hash.substring(0, 7))}</td>`
-      + `<td style="padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%;" title="${escapeHtml(c.message)}">${escapeHtml(c.message)}</td></tr>`
+      + `<td style="padding:3px 8px 3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%;text-align:left" title="${escapeHtml(c.message)}">${escapeHtml(c.message)}</td></tr>`
     ).join('');
     const contentHtml = `<div style="margin-bottom:8px;color:#888;font-size:13px">${t('local.pushConfirmCount', { count: commits.length })}</div>`
       + `<div${needsScroll ? ' style="max-height:360px;overflow-y:auto"' : ''}><table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table></div>`;
