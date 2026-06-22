@@ -571,7 +571,11 @@ app.post('/api/conflict-files', async (req: Request, res: Response) => {
           const headRef = await fs.promises.readFile(path.join(gitDir, 'rebase-merge', 'head-name'), 'utf-8');
           theirsBranch = headRef.trim().replace('refs/heads/', '');
         } else if (type === 'cherry-pick') {
-          theirsBranch = '';
+          try {
+            const hash = await fs.promises.readFile(path.join(gitDir, 'CHERRY_PICK_HEAD'), 'utf-8');
+            const msg = await git.raw(['log', '--format=%s', '-1', hash.trim()]);
+            theirsBranch = msg?.trim() || '';
+          } catch (_) { theirsBranch = ''; }
         }
       } catch (_) {}
     }
