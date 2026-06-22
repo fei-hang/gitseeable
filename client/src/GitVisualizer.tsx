@@ -1177,8 +1177,7 @@ function GitVisualizer() {
             {activeTab === 'commits' && (
               <div className="commit-pagination-box">
                 <div className="commit-header">
-                  {selectedBranch && <span className="commit-header-label commit-header-label--clickable" onClick={handleShowAllBranches} title={t('commit.showAll')}>{selectedBranch}</span>}
-                  <span className="commit-header-repo">{currentPath.split(/[/\\]/).filter(Boolean).pop()}</span>
+                  {selectedBranch && <span className="commit-header-label">{selectedBranch}</span>}
                   <span className="commit-header-count">{t('commit.count', { count: commitsTotal })}</span>
                 </div>
                 <div className="commit-list">
