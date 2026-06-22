@@ -38,6 +38,7 @@ interface GraphCommit {
   date: string;
   refs: string;
   isOnHeadBranch: boolean;
+  needsPush: boolean;
 }
 
 interface GraphRow {
@@ -1184,7 +1185,7 @@ function GitVisualizer() {
                           <div className="commit-content" onClick={() => handleToggleCommit(c.hash)}>
                               <div className={`commit-message${c.message.startsWith('Merge ') ? ' commit-message--merge' : ''}`}>{c.message}</div>
                               <div className="commit-meta">
-                                <span className="commit-hash">{c.hash.slice(0, 7)}</span>
+                                <span className="commit-hash">{c.hash.slice(0, 7)}{c.needsPush ? <span className="commit-needs-push"> ↑</span> : ''}</span>
                                 <span className="commit-author">{c.author}</span>
                                 <span className="commit-date">{c.date?.split('T')[0] || c.date}</span>
                               </div>

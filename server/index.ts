@@ -297,8 +297,25 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
     );
     const headAncestorMap: Record<string, boolean> = {};
     commitHashes.forEach((h, i) => { headAncestorMap[h] = headAncestorResults[i]; });
+
+    // Determine which commits need push (local-only commits for the selected branch)
+    let needsPushSet: Set<string> | null = null;
+    if (branch) {
+      try {
+        const remoteNames = await git.getRemotes();
+        const remotePrefix = remoteNames.length > 0 ? `${remoteNames[0].name}/` : 'origin/';
+        const unpushedRaw = await git.raw(['rev-list', `${remotePrefix}${branch}..${branch}`]);
+        if (unpushedRaw.trim()) {
+          needsPushSet = new Set(unpushedRaw.trim().split('\n').map(l => l.trim()).filter(Boolean));
+        }
+      } catch (_) {}
+    }
+
     for (const row of finalRows) {
-      if (row.commit) (row.commit as any).isOnHeadBranch = headAncestorMap[row.commit.hash] || false;
+      if (row.commit) {
+        (row.commit as any).isOnHeadBranch = headAncestorMap[row.commit.hash] || false;
+        (row.commit as any).needsPush = needsPushSet ? needsPushSet.has(row.commit.hash) : false;
+      }
     }
     res.json({ rows: finalRows, total, page, pageSize, headHash });
   } catch (error: any) {

@@ -474,6 +474,12 @@
   color: var(--text-secondary);
 }
 
+.commit-needs-push {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 12px;
+}
+
 .commit-author {
   color: var(--text-secondary);
 }
