@@ -81,6 +81,10 @@ export function cherryPickCommit(dirPath: string, commitHash: string) {
   return axios.post(`${API_BASE_URL}/api/cherry-pick`, { dirPath, commitHash }).then(res => res.data);
 }
 
+export function revertCommit(dirPath: string, commitHash: string) {
+  return axios.post(`${API_BASE_URL}/api/revert-commit`, { dirPath, commitHash }).then(res => res.data);
+}
+
 export function rebaseBranch(dirPath: string, targetBranch: string) {
   return axios.post(`${API_BASE_URL}/api/rebase-branch`, { dirPath, targetBranch }).then(res => res.data);
 }

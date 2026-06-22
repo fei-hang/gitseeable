@@ -109,7 +109,8 @@
     "push": "推送",
     "rename": "重命名",
     "delete": "删除",
-    "cherryPick": "优选此提交"
+    "cherryPick": "优选此提交",
+    "revert": "还原此提交"
   },
   "dialog": {
     "createBranch": {
@@ -155,6 +156,10 @@
     "cherryPick": {
       "success": "优选成功",
       "fail": "优选失败"
+    },
+    "revert": {
+      "success": "还原成功",
+      "fail": "还原失败"
     },
     "conflict": "冲突",
     "conflictTitle": "合并冲突",

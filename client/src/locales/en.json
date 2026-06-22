@@ -109,7 +109,8 @@
     "push": "Push",
     "rename": "Rename",
     "delete": "Delete",
-    "cherryPick": "Cherry-pick"
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert commit"
   },
   "dialog": {
     "createBranch": {
@@ -155,6 +156,10 @@
     "cherryPick": {
       "success": "Cherry-pick successful",
       "fail": "Cherry-pick failed"
+    },
+    "revert": {
+      "success": "Revert successful",
+      "fail": "Revert failed"
     },
     "conflict": "Conflict",
     "conflictTitle": "Merge Conflict",

@@ -14,7 +14,7 @@ import {
   stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
   fetchConflictFiles, continueMerge,
-  cherryPickCommit
+  cherryPickCommit, revertCommit
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -610,6 +610,7 @@ function GitVisualizer() {
     e.stopPropagation();
     const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
     actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: commit.isOnHeadBranch });
+    actions.push({ label: t('context.revert'), onClick: () => handleRevertCommit(commit.hash) });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
 
@@ -629,6 +630,18 @@ function GitVisualizer() {
       await handleLoadGraph();
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.cherryPick.fail'), text: err.response?.data?.error || err.message });
+    }
+  };
+
+  const handleRevertCommit = async (commitHash: string) => {
+    try {
+      await revertCommit(currentPath, commitHash);
+      Swal.fire({ icon: 'success', title: t('dialog.revert.success'), timer: 2000, showConfirmButton: false });
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+      await handleLoadGraph();
+    } catch (err: any) {
+      Swal.fire({ icon: 'error', title: t('dialog.revert.fail'), text: err.response?.data?.error || err.message });
     }
   };
 
