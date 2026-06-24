@@ -561,34 +561,50 @@ function GitVisualizer() {
     setLoading(false);
   };
 
+  const fetchConflictDialog = (titleKey: string, textKey: string, hintKey: string, files: string[]) => {
+    Swal.fire({
+      icon: 'warning',
+      title: i18n.t(titleKey),
+      html: `
+        <style>
+          .pull-conflict-text { font-size: 13px; color: var(--text-secondary, #64748B); line-height: 1.5; margin: 0 0 16px 0; text-align: left; }
+          .pull-conflict-files { list-style: none; padding: 0; margin: 0 0 16px 0; text-align: left; }
+          .pull-conflict-files li { font-size: 12px; font-family: var(--font-mono, 'Courier New', monospace); padding: 6px 10px; margin-bottom: 4px; background: var(--danger-light, #FEF2F2); border-radius: var(--radius-sm, 6px); color: var(--text-primary, #0F172A); word-break: break-all; }
+          .pull-conflict-files li::before { content: '⚠ '; }
+          .pull-conflict-hint { font-size: 12px; color: var(--text-tertiary, #94A3B8); margin: 0; text-align: left; padding-top: 8px; border-top: 1px solid var(--border, #E2E8F0); }
+        </style>
+        <p class="pull-conflict-text">${i18n.t(textKey)}</p>
+        <ul class="pull-conflict-files">${files.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul>
+        <p class="pull-conflict-hint">${i18n.t(hintKey)}</p>
+      `,
+      confirmButtonText: i18n.t('common.ok'),
+      confirmButtonColor: '#4F46E5',
+    });
+  };
+
   const showFetchError = (err: any) => {
     const msg: string = err.response?.data?.error || err.message || '';
+    const lines = msg.split('\n');
+
+    // 未追踪文件冲突: "The following untracked working tree files would be overwritten by merge"
     if (msg.includes('The following untracked working tree files would be overwritten by merge')) {
-      const lines = msg.split('\n');
       const fileStart = lines.findIndex(l => l.includes('would be overwritten by merge'));
       const fileEnd = lines.findIndex(l => l.startsWith('Please move'));
       const files = lines.slice(fileStart + 1, fileEnd).map(l => l.trim()).filter(Boolean);
-      Swal.fire({
-        icon: 'warning',
-        title: i18n.t('dialog.fetch.pullConflictTitle'),
-        html: `
-          <style>
-            .pull-conflict-text { font-size: 13px; color: var(--text-secondary, #64748B); line-height: 1.5; margin: 0 0 16px 0; text-align: left; }
-            .pull-conflict-files { list-style: none; padding: 0; margin: 0 0 16px 0; text-align: left; }
-            .pull-conflict-files li { font-size: 12px; font-family: var(--font-mono, 'Courier New', monospace); padding: 6px 10px; margin-bottom: 4px; background: var(--danger-light, #FEF2F2); border-radius: var(--radius-sm, 6px); color: var(--text-primary, #0F172A); word-break: break-all; }
-            .pull-conflict-files li::before { content: '⚠ '; }
-            .pull-conflict-hint { font-size: 12px; color: var(--text-tertiary, #94A3B8); margin: 0; text-align: left; padding-top: 8px; border-top: 1px solid var(--border, #E2E8F0); }
-          </style>
-          <p class="pull-conflict-text">${i18n.t('dialog.fetch.pullConflictText')}</p>
-          <ul class="pull-conflict-files">${files.map(f => `<li>${f}</li>`).join('')}</ul>
-          <p class="pull-conflict-hint">${i18n.t('dialog.fetch.pullConflictHint')}</p>
-        `,
-        confirmButtonText: i18n.t('common.ok'),
-        confirmButtonColor: '#4F46E5',
-      });
-    } else {
-      Swal.fire({ icon: 'error', title: i18n.t('dialog.fetch.fail'), text: msg });
+      fetchConflictDialog('dialog.fetch.pullConflictTitle', 'dialog.fetch.pullConflictText', 'dialog.fetch.pullConflictHint', files);
+      return;
     }
+
+    // 本地修改冲突: "Your local changes to the following files would be overwritten by merge"
+    if (msg.includes('Your local changes to the following files would be overwritten by merge')) {
+      const fileStart = lines.findIndex(l => l.includes('would be overwritten by merge'));
+      const fileEnd = lines.findIndex(l => l.startsWith('Please commit'));
+      const files = lines.slice(fileStart + 1, fileEnd).map(l => l.trim()).filter(Boolean);
+      fetchConflictDialog('dialog.fetch.localConflictTitle', 'dialog.fetch.localConflictText', 'dialog.fetch.localConflictHint', files);
+      return;
+    }
+
+    Swal.fire({ icon: 'error', title: i18n.t('dialog.fetch.fail'), text: msg });
   };
 
   const handleFetch = async (branch?: string) => {
