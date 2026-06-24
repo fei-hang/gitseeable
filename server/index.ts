@@ -1014,6 +1014,22 @@ app.post('/api/local-restore-file', async (req: Request, res: Response) => {
   }
 });
 
+// 删除未追踪文件或目录
+async function deleteFileOrDir(fullPath: string): Promise<boolean> {
+  try {
+    if (!fs.existsSync(fullPath)) return true;
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      fs.rmSync(fullPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(fullPath);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 删除未追踪的文件
 app.post('/api/local-delete-files', async (req: Request, res: Response) => {
   try {
@@ -1023,12 +1039,8 @@ app.post('/api/local-delete-files', async (req: Request, res: Response) => {
     }
     const failed: string[] = [];
     for (const file of selectedFiles) {
-      try {
-        const fullPath = path.join(dirPath, file);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
-      } catch (e) {
+      const fullPath = path.join(dirPath, file);
+      if (!await deleteFileOrDir(fullPath)) {
         failed.push(file);
       }
     }
