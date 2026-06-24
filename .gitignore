@@ -3,3 +3,8 @@ dist/
 .github_repo.png
 *.log
 server/state.json
+.playwright-mcp/
+.omo/run-continuation/
+context-menu.png
+drop-dialog*.png
+opencode-local.png
