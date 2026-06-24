@@ -145,7 +145,10 @@
     },
     "fetch": {
       "success": "更新完成",
-      "fail": "更新失败"
+      "fail": "更新失败",
+      "pullConflictTitle": "拉取冲突 — 未追踪的文件",
+      "pullConflictText": "远程分支新增了以下文件，但这些文件在你的本地工作目录中已存在且未被 Git 追踪，无法自动合并。",
+      "pullConflictHint": "请先备份、删除或提交这些文件，然后重试。"
     },
     "checkoutFail": "迁出失败",
     "checkoutConflict": "你本地已经存在修改过的文件，请 commit 后再迁出分支。",

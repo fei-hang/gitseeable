@@ -145,7 +145,10 @@
     },
     "fetch": {
       "success": "Fetch completed",
-      "fail": "Fetch failed"
+      "fail": "Fetch failed",
+      "pullConflictTitle": "Pull Conflict — Untracked Files",
+      "pullConflictText": "The remote branch has new files that already exist as untracked files in your working directory. Git cannot automatically merge.",
+      "pullConflictHint": "Please back up, delete, or commit these files before retrying."
     },
     "checkoutFail": "Checkout failed",
     "checkoutConflict": "You have local changes that would be overwritten. Please commit or stash them before switching branches.",
