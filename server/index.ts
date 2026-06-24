@@ -989,12 +989,21 @@ app.post('/api/local-restore-file', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '缺少参数或未选择文件' });
     }
     const git = getGit(dirPath);
+    const BATCH_SIZE = 100;
     const failed: string[] = [];
-    for (const file of selectedFiles) {
+    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
       try {
-        await git.checkout(['--', file]);
+        await git.checkout(['--', ...batch]);
       } catch (e) {
-        failed.push(file);
+        // 批量失败时逐个尝试，记录失败的文件
+        for (const file of batch) {
+          try {
+            await git.checkout(['--', file]);
+          } catch (e2) {
+            failed.push(file);
+          }
+        }
       }
     }
     res.json({ ok: true, failed });
@@ -1037,8 +1046,11 @@ app.post('/api/local-stage-files', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '缺少参数或未选择文件' });
     }
     const git = getGit(dirPath);
-    for (const file of selectedFiles) {
-      await git.raw(['add', file]);
+    // 批量处理，避免 Windows 命令行长度限制
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+      await git.raw(['add', ...batch]);
     }
     res.json({ ok: true });
   } catch (error: any) {
@@ -1055,8 +1067,11 @@ app.post('/api/local-unstage-files', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '缺少参数或未选择文件' });
     }
     const git = getGit(dirPath);
-    for (const file of selectedFiles) {
-      await git.raw(['restore', '--staged', file]);
+    // 批量处理，避免 Windows 命令行长度限制
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+      await git.raw(['restore', '--staged', '--', ...batch]);
     }
     res.json({ ok: true });
   } catch (error: any) {
@@ -1077,8 +1092,10 @@ app.post('/api/local-commit', async (req: Request, res: Response) => {
     }
     const git = getGit(dirPath);
     await git.reset();
-    for (const file of selectedFiles) {
-      await git.add(file);
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+      await git.add(batch);
     }
     await git.commit(message);
     res.json({ ok: true });
@@ -1100,8 +1117,10 @@ app.post('/api/local-commit-push', async (req: Request, res: Response) => {
     }
     const git = getGit(dirPath);
     await git.reset();
-    for (const file of selectedFiles) {
-      await git.add(file);
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+      await git.add(batch);
     }
     await git.commit(message);
     const branch = (await git.branchLocal()).current;

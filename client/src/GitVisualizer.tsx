@@ -413,7 +413,7 @@ function GitVisualizer() {
       }
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.mergeFail'), text: err.response?.data?.error || err.message });
     }
@@ -536,8 +536,8 @@ function GitVisualizer() {
     try {
       const confirmed = await confirmPushDialog(branch);
       if (confirmed) {
-        await handleRefreshGitInfo();
-        await handleLoadGraph();
+        const data = await handleRefreshGitInfo();
+        await handleLoadGraph(1, commitPageSize, data?.currentBranch);
       }
     } catch { /* ignore */ }
     setLoading(false);
@@ -653,7 +653,7 @@ function GitVisualizer() {
       }
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.rebaseFail'), text: err.response?.data?.error || err.message });
     }
@@ -711,7 +711,7 @@ function GitVisualizer() {
       Swal.fire({ icon: 'success', title: t('dialog.cherryPick.success'), timer: 2000, showConfirmButton: false });
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.cherryPick.fail'), text: err.response?.data?.error || err.message });
     }
@@ -723,7 +723,7 @@ function GitVisualizer() {
       Swal.fire({ icon: 'success', title: t('dialog.revert.success'), timer: 2000, showConfirmButton: false });
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.revert.fail'), text: err.response?.data?.error || err.message });
     }
@@ -758,7 +758,7 @@ function GitVisualizer() {
       Swal.fire({ icon: 'success', title: t('dialog.drop.success'), timer: 2000, showConfirmButton: false });
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.drop.fail'), text: err.response?.data?.error || err.message });
     }
@@ -832,7 +832,7 @@ function GitVisualizer() {
       Swal.fire({ icon: 'success', title: t('dialog.reset.success'), timer: 2000, showConfirmButton: false });
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
-      await handleLoadGraph();
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.reset.fail'), text: err.response?.data?.error || err.message });
     }
