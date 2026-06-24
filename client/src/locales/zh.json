@@ -137,7 +137,10 @@
     },
     "delete": {
       "title": "确认删除",
-      "text": "确定删除分支 \"{{branch}}\"？"
+      "text": "确定删除分支 \"{{branch}}\"？",
+      "forceTitle": "分支未合并",
+      "forceText": "分支 \"{{branch}}\" 有未合并的提交，确认强制删除？",
+      "forceConfirm": "强制删除"
     },
     "push": {
       "success": "分支 \"{{branch}}\" 推送成功",

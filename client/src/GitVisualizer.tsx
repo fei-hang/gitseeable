@@ -447,22 +447,40 @@ function GitVisualizer() {
     }
   };
 
-  const handleDeleteBranch = async (branch: string) => {
-    const { isConfirmed } = await Swal.fire({
-      title: i18n.t('dialog.delete.title'),
-      text: i18n.t('dialog.delete.text', { branch }),
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: t('common.delete'),
-      cancelButtonText: t('common.cancel'),
-      confirmButtonColor: '#e74c3c'
-    });
-    if (!isConfirmed) return;
+  const handleDeleteBranch = async (branch: string, force = false) => {
+    if (!force) {
+      const { isConfirmed } = await Swal.fire({
+        title: i18n.t('dialog.delete.title'),
+        text: i18n.t('dialog.delete.text', { branch }),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        confirmButtonColor: '#e74c3c'
+      });
+      if (!isConfirmed) return;
+    }
     setLoading(true);
     try {
-      await deleteBranch(currentPath, branch);
+      await deleteBranch(currentPath, branch, force);
       await handleRefreshGitInfo();
     } catch (err: any) {
+      const data = err.response?.data;
+      if (data?.needsForce) {
+        const result = await Swal.fire({
+          title: i18n.t('dialog.delete.forceTitle'),
+          html: `<p style="text-align:center;color:var(--text-secondary);font-size:14px;margin:0">${i18n.t('dialog.delete.forceText', { branch })}</p>`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: i18n.t('dialog.delete.forceConfirm'),
+          cancelButtonText: t('common.cancel'),
+          confirmButtonColor: '#e74c3c'
+        });
+        if (result.isConfirmed) {
+          return handleDeleteBranch(branch, true);
+        }
+        return;
+      }
       Swal.fire({ icon: 'error', title: i18n.t('dialog.deleteFail'), text: err.response?.data?.error || err.message });
     } finally {
       setLoading(false);

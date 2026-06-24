@@ -480,12 +480,20 @@ app.post('/api/rename-branch', async (req: Request, res: Response) => {
 // 删除分支
 app.post('/api/delete-branch', async (req: Request, res: Response) => {
   try {
-    const { dirPath, branch } = req.body;
+    const { dirPath, branch, force } = req.body;
     if (!dirPath || !branch) {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    await git.branch(['-d', branch]);
+    try {
+      await git.branch([force ? '-D' : '-d', branch]);
+    } catch (err: any) {
+      // 如果分支未合并，提示是否强制删除
+      if (err.message?.includes('not fully merged')) {
+        return res.status(409).json({ error: err.message, needsForce: true, branch });
+      }
+      throw err;
+    }
     res.json({ ok: true });
   } catch (error: any) {
     console.error('删除分支时出错:', error);

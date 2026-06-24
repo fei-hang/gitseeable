@@ -45,8 +45,8 @@ export function renameBranch(dirPath: string, oldName: string, newName: string) 
   return axios.post(`${API_BASE_URL}/api/rename-branch`, { dirPath, oldName, newName }).then(res => res.data);
 }
 
-export function deleteBranch(dirPath: string, branch: string) {
-  return axios.post(`${API_BASE_URL}/api/delete-branch`, { dirPath, branch }).then(res => res.data);
+export function deleteBranch(dirPath: string, branch: string, force = false) {
+  return axios.post(`${API_BASE_URL}/api/delete-branch`, { dirPath, branch, force }).then(res => res.data);
 }
 
 export function fetchPendingCommits(dirPath: string, branch: string) {

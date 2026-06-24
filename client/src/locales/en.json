@@ -137,7 +137,10 @@
     },
     "delete": {
       "title": "Confirm Delete",
-      "text": "Are you sure you want to delete branch \"{{branch}}\"?"
+      "text": "Are you sure you want to delete branch \"{{branch}}\"?",
+      "forceTitle": "Branch Not Merged",
+      "forceText": "Branch \"{{branch}}\" has unmerged commits. Force delete?",
+      "forceConfirm": "Force Delete"
     },
     "push": {
       "success": "Branch \"{{branch}}\" pushed successfully",

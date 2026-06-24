@@ -1,0 +1,79 @@
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - button "← 重选目录" [ref=e7] [cursor=pointer]
+    - generic [ref=e8]: D:\softwareDataDirectory\JavaScript\opencode
+    - generic [ref=e9]:
+      - button "提交历史" [ref=e10] [cursor=pointer]
+      - button "本地修改" [ref=e11] [cursor=pointer]
+    - button "↻ 刷新" [ref=e12] [cursor=pointer]
+    - button "EN" [ref=e13] [cursor=pointer]
+    - button "☀️" [ref=e14] [cursor=pointer]
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - heading "本地分支 (2) ↻" [level=3] [ref=e18] [cursor=pointer]:
+          - generic [ref=e19]: 本地分支 (2)
+          - button "↻" [ref=e20]
+        - generic [ref=e21]:
+          - generic [ref=e22] [cursor=pointer]:
+            - generic [ref=e23]: ●
+            - generic [ref=e24]: adapter-rename
+            - generic "可推送 (2368 个提交)" [ref=e25]: ▲
+            - generic "可拉取 (1 个提交)" [ref=e26]: ▼
+          - generic [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]: ○
+            - generic [ref=e29]: dev
+            - generic "可拉取 (252 个提交)" [ref=e30]: ▼
+      - generic [ref=e31]:
+        - heading "远程分支 (707) ▼" [level=3] [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: 远程分支 (707) ▼
+        - generic [ref=e34]:
+          - generic [ref=e35] [cursor=pointer]:
+            - generic [ref=e36]: ○
+            - generic [ref=e37]: origin/2.0
+          - generic [ref=e38] [cursor=pointer]:
+            - generic [ref=e39]: ○
+            - generic [ref=e40]: origin/Cramer/2026-03-25/bare-repo-bug
+          - generic [ref=e41] [cursor=pointer]:
+            - generic [ref=e42]: ○
+            - generic [ref=e43]: origin/K-Mistele/dev
+          - generic [ref=e44] [cursor=pointer]:
+            - generic [ref=e45]: ○
+            - generic [ref=e46]: origin/adapter-rename
+          - generic [ref=e47] [cursor=pointer]:
+            - generic [ref=e48]: ○
+            - generic [ref=e49]: origin/add-api-shape
+          - generic [ref=e50] [cursor=pointer]:
+            - generic [ref=e51]: ○
+            - generic [ref=e52]: origin/add-beta-branch-trigger
+          - generic [ref=e53] [cursor=pointer]:
+            - generic [ref=e54]: ○
+            - generic [ref=e55]: origin/add-dynamic-agents-resolving
+          - generic [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: ○
+            - generic [ref=e58]: origin/add-ignored
+          - generic [ref=e59] [cursor=pointer]:
+            - generic [ref=e60]: ○
+            - generic [ref=e61]: origin/add-model-reconciliation
+          - generic [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: ○
+            - generic [ref=e64]: origin/add-tests
+          - generic [ref=e65] [cursor=pointer]: ... 还有 697 个
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - textbox "输入提交说明..." [ref=e70]
+        - generic [ref=e72]:
+          - button "提交" [disabled] [ref=e73]
+          - button "提交并推送" [disabled] [ref=e74]
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - generic [ref=e78] [cursor=pointer]:
+              - checkbox "已暂存 (0)" [ref=e79]
+              - generic [ref=e80]: 已暂存 (0)
+            - paragraph [ref=e82]: 没有已暂存的文件
+          - generic [ref=e83]:
+            - generic [ref=e85] [cursor=pointer]:
+              - checkbox "未暂存 (0)" [ref=e86]
+              - generic [ref=e87]: 未暂存 (0)
+            - paragraph [ref=e89]: 没有未暂存的文件
+      - paragraph [ref=e92]: 请选择一个文件查看修改内容
