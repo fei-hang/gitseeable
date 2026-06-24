@@ -11,10 +11,10 @@ import {
   deleteBranch, pushBranch, fetchAll, compareBranches, getCommitDiff, rebaseBranch,
   fetchCommitFiles, fetchCommitFileDiff,
   fetchLocalStatus, fetchLocalFileDiff, commitChanges,
-  stageFiles, restoreFile, fetchUiState, saveUiState, fetchPendingCommits,
+  stageFiles, restoreFile, deleteFiles, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
   fetchConflictFiles, continueMerge,
-  cherryPickCommit, revertCommit, dropCommit
+  cherryPickCommit, revertCommit, dropCommit, gitReset, pullBranch
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -125,6 +125,7 @@ function GitVisualizer() {
   const [fileDiffLoading, setFileDiffLoading] = useState(false);
   const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null);
   const [localStatusLoading, setLocalStatusLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [selectedLocalFile, setSelectedLocalFile] = useState<string | null>(null);
   const [selectedLocalFileType, setSelectedLocalFileType] = useState<string | null>(null);
   const [localFileDiff, setLocalFileDiff] = useState<DiffRow[]>([]);
@@ -542,8 +543,23 @@ function GitVisualizer() {
     setLoading(false);
   };
 
-  const handleFetch = async () => {
-    setLoading(true);
+  const handleFetch = async (branch?: string) => {
+    if (branch) {
+      setFetchLoading(true);
+      try {
+        await pullBranch(currentPath, branch);
+        await handleRefreshGitInfo();
+        Swal.fire({ icon: 'success', title: i18n.t('dialog.fetch.success'), timer: 2000, showConfirmButton: false });
+      } catch (err: any) {
+        Swal.fire({ icon: 'error', title: i18n.t('dialog.fetch.fail'), text: err.response?.data?.error || err.message });
+      } finally {
+        setFetchLoading(false);
+      }
+    }
+  };
+
+  const handleFetchAll = async () => {
+    setFetchLoading(true);
     try {
       await fetchAll(currentPath);
       await handleRefreshGitInfo();
@@ -551,7 +567,7 @@ function GitVisualizer() {
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: i18n.t('dialog.fetch.fail'), text: err.response?.data?.error || err.message });
     } finally {
-      setLoading(false);
+      setFetchLoading(false);
     }
   };
 
@@ -630,7 +646,7 @@ function GitVisualizer() {
     }
 
     actions.push({ label: t('context.compare', { branch, current: gitInfo?.currentBranch }), onClick: () => handleCompareBranches(branch) });
-    actions.push({ label: t('context.fetch'), onClick: () => handleFetch() });
+    actions.push({ label: t('context.fetch'), onClick: () => handleFetch(branch) });
     actions.push({ label: t('context.push'), onClick: () => handlePushBranch(branch) });
     actions.push({ label: t('context.rename'), onClick: () => handleRenameBranch(branch) });
 
@@ -647,6 +663,7 @@ function GitVisualizer() {
     const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
     actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: commit.isOnHeadBranch });
     actions.push({ label: t('context.revert'), onClick: () => handleRevertCommit(commit.hash) });
+    actions.push({ label: t('context.reset'), onClick: () => handleResetCommit(commit.hash) });
     actions.push({ label: t('context.drop'), onClick: () => handleDropCommit(commit), danger: true, disabled: !commit.parents });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
   };
@@ -714,6 +731,80 @@ function GitVisualizer() {
       await handleLoadGraph();
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.drop.fail'), text: err.response?.data?.error || err.message });
+    }
+  };
+
+  const handleResetCommit = async (commitHash: string) => {
+    const result = await Swal.fire({
+      title: '',
+      html: `
+        <style>
+          .reset-modal { font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif); text-align: left; }
+          .reset-modal p { margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary, #64748B); line-height: 1.5; }
+          .reset-option { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding: 14px 16px; border: 1.5px solid var(--border, #E2E8F0); border-radius: var(--radius-lg, 12px); cursor: pointer; transition: all 150ms ease; }
+          .reset-option:hover { border-color: var(--primary, #4F46E5); background: var(--primary-alpha, rgba(79,70,229,0.04)); }
+          .reset-option.is-selected { border-color: var(--primary, #4F46E5); background: var(--primary-light, #EEF2FF); }
+          .reset-option input[type="radio"] { accent-color: var(--primary, #4F46E5); width: 18px; height: 18px; margin: 0; flex-shrink: 0; }
+          .reset-option-content { display: flex; flex-direction: column; gap: 2px; }
+          .reset-option-title { font-size: 14px; font-weight: 600; color: var(--text-primary, #0F172A); line-height: 1.4; }
+          .reset-option-desc { font-size: 12px; color: var(--text-tertiary, #94A3B8); line-height: 1.4; }
+        </style>
+        <div class="reset-modal">
+          <p>${i18n.language === 'zh' ? '选择重置方式，HEAD 指针将移动到所选提交。' : 'Choose a reset mode. HEAD will move to the selected commit.'}</p>
+          <label class="reset-option" id="reset-soft" onclick="document.querySelector('#reset-soft input').click()">
+            <input type="radio" name="resetType" value="soft" />
+            <div class="reset-option-content">
+              <div class="reset-option-title">${t('dialog.reset.soft')}</div>
+              <div class="reset-option-desc">${i18n.language === 'zh' ? 'HEAD 指针移动，所有更改保留到暂存区' : 'HEAD moves, all changes kept in staging area'}</div>
+            </div>
+          </label>
+          <label class="reset-option is-selected" id="reset-mixed" onclick="document.querySelector('#reset-mixed input').click()">
+            <input type="radio" name="resetType" value="mixed" checked />
+            <div class="reset-option-content">
+              <div class="reset-option-title">${t('dialog.reset.mixed')}</div>
+              <div class="reset-option-desc">${i18n.language === 'zh' ? 'HEAD 指针移动，更改保留在工作目录（默认）' : 'HEAD moves, changes kept in working directory (default)'}</div>
+            </div>
+          </label>
+          <label class="reset-option" id="reset-hard" onclick="document.querySelector('#reset-hard input').click()">
+            <input type="radio" name="resetType" value="hard" />
+            <div class="reset-option-content">
+              <div class="reset-option-title">${t('dialog.reset.hard')}</div>
+              <div class="reset-option-desc">${i18n.language === 'zh' ? 'HEAD 指针移动，所有更改将被丢弃' : 'HEAD moves, all changes are discarded'}</div>
+            </div>
+          </label>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: t('common.confirm'),
+      confirmButtonColor: '#4F46E5',
+      cancelButtonText: t('common.cancel'),
+      didOpen: () => {
+        document.querySelectorAll('.reset-option').forEach(el => {
+          const radio = el.querySelector('input[type="radio"]') as HTMLInputElement;
+          radio?.addEventListener('change', () => {
+            document.querySelectorAll('.reset-option').forEach(o => o.classList.remove('is-selected'));
+            el.classList.add('is-selected');
+          });
+        });
+      },
+      preConfirm: () => {
+        const el = document.querySelector('input[name="resetType"]:checked') as HTMLInputElement;
+        if (!el) {
+          Swal.showValidationMessage('请选择重置类型');
+        }
+        return el?.value;
+      }
+    });
+    if (!result.isConfirmed) return;
+    const resetType = result.value;
+    try {
+      await gitReset(currentPath, commitHash, resetType);
+      Swal.fire({ icon: 'success', title: t('dialog.reset.success'), timer: 2000, showConfirmButton: false });
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+      await handleLoadGraph();
+    } catch (err: any) {
+      Swal.fire({ icon: 'error', title: t('dialog.reset.fail'), text: err.response?.data?.error || err.message });
     }
   };
 
@@ -792,14 +883,14 @@ function GitVisualizer() {
     }
     const selectedObjs = (localStatus?.unstaged || []).filter(f => selectedUnstagedFiles[f.path]);
     const restorable = selectedObjs.filter(f => f.status !== 'untracked');
-    const skipped = selectedObjs.filter(f => f.status === 'untracked');
-    if (restorable.length === 0) {
-      Swal.fire({ icon: 'info', title: t('local.restore'), text: t('local.restoreSkipAll') });
-      return;
-    }
-    let confirmText = t('local.restoreConfirm', { count: restorable.length });
-    if (skipped.length > 0) {
-      confirmText += '\n' + t('local.restoreSkipCount', { count: skipped.length });
+    const toDelete = selectedObjs.filter(f => f.status === 'untracked');
+    let confirmText: string;
+    if (restorable.length > 0 && toDelete.length > 0) {
+      confirmText = t('local.restoreDeleteConfirm', { restoreCount: restorable.length, deleteCount: toDelete.length });
+    } else if (toDelete.length > 0) {
+      confirmText = t('local.restoreDeleteConfirm', { restoreCount: 0, deleteCount: toDelete.length });
+    } else {
+      confirmText = t('local.restoreConfirm', { count: restorable.length });
     }
     const result = await Swal.fire({
       icon: 'warning',
@@ -812,8 +903,14 @@ function GitVisualizer() {
     if (!result.isConfirmed) return;
     setRestoreLoading(true);
     try {
-      const restorePaths = restorable.map(f => f.path);
-      await restoreFile(currentPath, restorePaths);
+      if (restorable.length > 0) {
+        try {
+          await restoreFile(currentPath, restorable.map(f => f.path));
+        } catch (_) { /* 忽略回退失败 */ }
+      }
+      if (toDelete.length > 0) {
+        await deleteFiles(currentPath, toDelete.map(f => f.path));
+      }
       setSelectedUnstagedFiles({});
       if (selectedLocalFile && selectedLocalFileType === 'unstaged') {
         setSelectedLocalFile(null);
@@ -1247,6 +1344,8 @@ function GitVisualizer() {
                   onSelect={handleBranchSelect}
                   onDoubleClick={handleBranchDoubleClick}
                   onContextMenuOpen={handleContextMenuOpen}
+                  onFetch={handleFetchAll}
+                  fetching={fetchLoading}
                 />
                 <BranchList
                   title={t('branch.remote')}

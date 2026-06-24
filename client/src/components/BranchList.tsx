@@ -17,9 +17,11 @@ interface BranchListProps {
   onSelect: (branch: string) => void;
   onDoubleClick?: (branch: string) => void;
   onContextMenuOpen: (e: React.MouseEvent, branch: string) => void;
+  onFetch?: () => void;
+  fetching?: boolean;
 }
 
-function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, onDoubleClick, onContextMenuOpen }: BranchListProps) {
+function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, onDoubleClick, onContextMenuOpen, onFetch, fetching }: BranchListProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -38,7 +40,17 @@ function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, 
   return (
     <div className="branch-panel">
       <h3 className="branch-panel-title" onClick={() => setExpanded(!expanded)}>
-        {title} ({branches.length}) {hasMore ? (expanded ? '▲' : '▼') : ''}
+        <span>{title} ({branches.length}) {hasMore ? (expanded ? '▲' : '▼') : ''}</span>
+        {onFetch && (
+          <button
+            className={`branch-fetch-btn${fetching ? ' branch-fetch-btn--spinning' : ''}`}
+            onClick={(e) => { e.stopPropagation(); onFetch(); }}
+            title={t('context.fetch')}
+            disabled={fetching}
+          >
+            ↻
+          </button>
+        )}
       </h3>
       <div className="branch-panel-list">
         {visible.map((branch, index) => {

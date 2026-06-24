@@ -59,6 +59,7 @@
     "restore": "回退",
     "restoreFail": "回退失败",
     "restoreConfirm": "确定回退选中的 {{count}} 个文件？此操作不可撤销。",
+    "restoreDeleteConfirm": "{{restoreCount}} 个文件将被回退，{{deleteCount}} 个未追踪的文件将被直接删除。\n此操作不可撤销。",
     "restoreSkipAll": "选中的文件都是未追踪的新文件，无法回退。",
     "restoreSkipCount": "（已跳过 {{count}} 个未追踪的新文件）",
     "stage": "暂存",
@@ -112,7 +113,8 @@
     "delete": "删除",
     "cherryPick": "优选此提交",
     "revert": "还原此提交",
-    "drop": "删除此提交"
+    "drop": "删除此提交",
+    "reset": "重置到此 commit"
   },
   "dialog": {
     "createBranch": {
@@ -170,6 +172,14 @@
       "dontAskAgain": "之后不再询问",
       "success": "删除成功",
       "fail": "删除失败"
+    },
+    "reset": {
+      "title": "Git Reset",
+      "hard": "Hard — 丢弃所有更改",
+      "soft": "Soft — 保留更改到暂存区",
+      "mixed": "Mixed — 保留工作目录更改（默认）",
+      "success": "重置成功",
+      "fail": "重置失败"
     },
     "conflict": "冲突",
     "conflictTitle": "合并冲突",

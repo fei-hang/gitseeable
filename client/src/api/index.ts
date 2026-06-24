@@ -61,6 +61,10 @@ export function fetchAll(dirPath: string) {
   return axios.post(`${API_BASE_URL}/api/fetch`, { dirPath }).then(res => res.data);
 }
 
+export function pullBranch(dirPath: string, branch: string) {
+  return axios.post(`${API_BASE_URL}/api/pull-branch`, { dirPath, branch }).then(res => res.data);
+}
+
 export function compareBranches(dirPath: string, baseBranch: string, compareBranch: string) {
   return axios.post(`${API_BASE_URL}/api/compare-branches`, { dirPath, baseBranch, compareBranch }).then(res => res.data);
 }
@@ -87,6 +91,10 @@ export function revertCommit(dirPath: string, commitHash: string) {
 
 export function dropCommit(dirPath: string, commitHash: string, parentHash: string, branch: string) {
   return axios.post(`${API_BASE_URL}/api/drop-commit`, { dirPath, commitHash, parentHash, branch }).then(res => res.data);
+}
+
+export function gitReset(dirPath: string, commitHash: string, resetType: string) {
+  return axios.post(`${API_BASE_URL}/api/reset-commit`, { dirPath, commitHash, resetType }).then(res => res.data);
 }
 
 export function rebaseBranch(dirPath: string, targetBranch: string) {
@@ -131,6 +139,10 @@ export function fetchLocalFileDiff(dirPath: string, filePath: string, type: stri
 
 export function restoreFile(dirPath: string, selectedFiles: string[]) {
   return axios.post(`${API_BASE_URL}/api/local-restore-file`, { dirPath, selectedFiles }).then(res => res.data);
+}
+
+export function deleteFiles(dirPath: string, selectedFiles: string[]) {
+  return axios.post(`${API_BASE_URL}/api/local-delete-files`, { dirPath, selectedFiles }).then(res => res.data);
 }
 
 export function stageFiles(dirPath: string, selectedFiles: string[]) {

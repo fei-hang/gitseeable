@@ -59,6 +59,7 @@
     "restore": "Restore",
     "restoreFail": "Restore failed",
     "restoreConfirm": "Are you sure you want to restore {{count}} selected file(s)? This cannot be undone.",
+    "restoreDeleteConfirm": "{{restoreCount}} file(s) will be restored, {{deleteCount}} untracked file(s) will be DELETED.\nThis cannot be undone.",
     "restoreSkipAll": "All selected files are untracked and cannot be restored.",
     "restoreSkipCount": "({{count}} untracked file(s) skipped)",
     "stage": "Stage",
@@ -112,7 +113,8 @@
     "delete": "Delete",
     "cherryPick": "Cherry-pick",
     "revert": "Revert commit",
-    "drop": "Delete commit"
+    "drop": "Delete commit",
+    "reset": "Reset to this commit"
   },
   "dialog": {
     "createBranch": {
@@ -170,6 +172,14 @@
       "dontAskAgain": "Don't ask again",
       "success": "Commit deleted",
       "fail": "Failed to delete commit"
+    },
+    "reset": {
+      "title": "Git Reset",
+      "hard": "Hard — discard all changes",
+      "soft": "Soft — keep changes in staging",
+      "mixed": "Mixed — keep working directory changes (default)",
+      "success": "Reset successful",
+      "fail": "Reset failed"
     },
     "conflict": "Conflict",
     "conflictTitle": "Merge Conflict",

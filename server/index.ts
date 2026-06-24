@@ -441,6 +441,26 @@ app.post('/api/drop-commit', async (req: Request, res: Response) => {
   }
 });
 
+// Git Reset（重置到此提交）
+const VALID_RESET_TYPES = ['hard', 'soft', 'mixed'];
+app.post('/api/reset-commit', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, commitHash, resetType } = req.body;
+    if (!dirPath || !commitHash || !resetType) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    if (!VALID_RESET_TYPES.includes(resetType)) {
+      return res.status(400).json({ error: '无效的重置类型，仅支持 hard/soft/mixed' });
+    }
+    const git = getGit(dirPath);
+    await git.raw(['reset', `--${resetType}`, commitHash]);
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('重置时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 重命名分支
 app.post('/api/rename-branch', async (req: Request, res: Response) => {
   try {
@@ -543,6 +563,27 @@ app.post('/api/fetch', async (req: Request, res: Response) => {
     }
     const prefix = remoteUrl ? `远程仓库链接失败: ${remoteUrl} ` : '';
     res.status(500).json({ error: `${prefix}${error.message}` });
+  }
+});
+
+// 拉取指定分支（git pull — 当前分支用 pull，非当前分支用 fetch + fast-forward）
+app.post('/api/pull-branch', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, branch } = req.body;
+    if (!dirPath || !branch) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const currentBranch = (await git.branchLocal()).current;
+    if (branch === currentBranch) {
+      await git.raw(['pull', '--ff-only', 'origin', branch]);
+    } else {
+      await git.raw(['fetch', 'origin', `${branch}:${branch}`]);
+    }
+    res.json({ ok: true });
+  } catch (error: any) {
+    console.error('拉取分支时出错:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -895,7 +936,12 @@ app.post('/api/local-status', async (req: Request, res: Response) => {
     for (const line of lines) {
       const idx = line[0];
       const wd = line[1];
-      const filePath = line.slice(3);
+      let filePath = line.slice(3);
+      // Handle renamed files: git status --porcelain outputs "R  oldpath -> newpath"
+      // Use the new path (after " -> ") for all operations
+      if (filePath.includes(' -> ')) {
+        filePath = filePath.split(' -> ').pop()!.trim();
+      }
       if (filePath.endsWith('/')) continue;
       if (idx === 'U' || wd === 'U') continue;
       if (idx !== ' ' && idx !== '?' && idx !== '!') {
@@ -953,6 +999,31 @@ app.post('/api/local-restore-file', async (req: Request, res: Response) => {
     res.json({ ok: true, failed });
   } catch (error: any) {
     console.error('回退文件时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除未追踪的文件
+app.post('/api/local-delete-files', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, selectedFiles } = req.body;
+    if (!dirPath || !selectedFiles || selectedFiles.length === 0) {
+      return res.status(400).json({ error: '缺少参数或未选择文件' });
+    }
+    const failed: string[] = [];
+    for (const file of selectedFiles) {
+      try {
+        const fullPath = path.join(dirPath, file);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      } catch (e) {
+        failed.push(file);
+      }
+    }
+    res.json({ ok: true, failed });
+  } catch (error: any) {
+    console.error('删除文件时出错:', error);
     res.status(500).json({ error: error.message });
   }
 });
