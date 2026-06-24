@@ -566,7 +566,7 @@ app.post('/api/fetch', async (req: Request, res: Response) => {
   }
 });
 
-// 拉取指定分支（git pull — 当前分支用 pull，非当前分支用 fetch + fast-forward）
+// 拉取指定分支（git pull — 分离 fetch + merge，避免 FETCH_HEAD 歧义）
 app.post('/api/pull-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
@@ -576,7 +576,8 @@ app.post('/api/pull-branch', async (req: Request, res: Response) => {
     const git = getGit(dirPath);
     const currentBranch = (await git.branchLocal()).current;
     if (branch === currentBranch) {
-      await git.raw(['pull', '--ff-only', 'origin', branch]);
+      await git.raw(['fetch', 'origin', branch]);
+      await git.raw(['merge', '--ff-only', `origin/${branch}`]);
     } else {
       await git.raw(['fetch', 'origin', `${branch}:${branch}`]);
     }
