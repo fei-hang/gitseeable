@@ -91,6 +91,10 @@
   --swal2-color: var(--text-primary);
 }
 
+.swal2-popup {
+  --swal2-background: var(--surface);
+  --swal2-color: var(--text-primary);
+}
 [data-theme="dark"] .swal2-popup {
   background: var(--surface);
   color: var(--text-primary);

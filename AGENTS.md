@@ -99,6 +99,8 @@ Run `git commit` after every modification with a descriptive message. **Do NOT p
 IF you run git commit, tell me a descriptive message.
 IF you add a new feature, update `DOC/README.md` with operation instructions and screenshots.
 
+**Commit after every feature or bug fix.** Before committing, inspect `git status` and `git diff`; stage only intended files (exclude `.playwright-mcp/`, `.omo/run-continuation/`, and other test artifacts).
+
 ## Dependencies
 
 Three independent `npm install` — **no workspaces**:
