@@ -943,15 +943,16 @@ app.post('/api/local-status', async (req: Request, res: Response) => {
       if (filePath.includes(' -> ')) {
         filePath = filePath.split(' -> ').pop()!.trim();
       }
-      if (filePath.endsWith('/')) continue;
       if (idx === 'U' || wd === 'U') continue;
+      // 移除目录斜杠后缀（git status --porcelain 对未追踪目录输出 dirname/）
+      const cleanPath = filePath.replace(/\/$/, '');
       if (idx !== ' ' && idx !== '?' && idx !== '!') {
-        staged.push({ path: filePath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
+        staged.push({ path: cleanPath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
       }
       if (idx === '?' && wd === '?') {
-        unstaged.push({ path: filePath, status: 'untracked' });
+        unstaged.push({ path: cleanPath, status: 'untracked' });
       } else if (wd !== ' ' && idx !== '?') {
-        unstaged.push({ path: filePath, status: wd === 'M' ? 'modified' : wd === 'D' ? 'deleted' : wd });
+        unstaged.push({ path: cleanPath, status: wd === 'M' ? 'modified' : wd === 'D' ? 'deleted' : wd });
       }
     }
     res.json({ staged, unstaged });
