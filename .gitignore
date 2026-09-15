@@ -6,6 +6,7 @@ dist/
 server/state.json
 .playwright-mcp/
 .omo/run-continuation/
+.workbuddy/
 context-menu.png
 drop-dialog*.png
 opencode-local.png
