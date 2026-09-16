@@ -1320,6 +1320,51 @@
   background: var(--success-light);
 }
 
+.diff-row--collapsed {
+  display: block;              /* 覆盖 .diff-row 的 flex */
+  position: relative;
+  cursor: pointer;
+  background: var(--background-alt);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+.diff-row--collapsed:hover { background: var(--surface-hover); }
+
+.diff-wave {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='20'%3E%3Cpath d='M0 10 C5.33 4 10.67 4 16 10 C21.33 16 26.67 16 32 10' fill='none' stroke='%23BA7517' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+}
+[data-theme="dark"] .diff-wave {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='20'%3E%3Cpath d='M0 10 C5.33 4 10.67 4 16 10 C21.33 16 26.67 16 32 10' fill='none' stroke='%23FBBF24' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+.diff-collapse-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  background: var(--background-alt);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.diff-row--collapsed:hover .diff-collapse-label { background: var(--surface-hover); }
+
+.local-diff-notice {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
 .diff-line-num {
   display: inline-block;
   width: 32px;

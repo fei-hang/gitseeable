@@ -133,7 +133,23 @@ export function fetchLocalStatus(dirPath: string) {
   return axios.post(`${API_BASE_URL}/api/local-status`, { dirPath }).then(res => res.data);
 }
 
-export function fetchLocalFileDiff(dirPath: string, filePath: string, type: string) {
+export interface LocalFileDiffRow {
+  oldLine: number | null;
+  oldContent: string | null;
+  oldType: string | null;
+  newLine: number | null;
+  newContent: string | null;
+  newType: string | null;
+}
+
+export interface LocalFileDiffResponse {
+  filePath: string;
+  type: string;
+  rows: LocalFileDiffRow[];
+  degraded?: boolean;
+}
+
+export function fetchLocalFileDiff(dirPath: string, filePath: string, type: string): Promise<LocalFileDiffResponse> {
   return axios.post(`${API_BASE_URL}/api/local-file-diff`, { dirPath, filePath, type }).then(res => res.data);
 }
 

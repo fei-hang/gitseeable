@@ -49,6 +49,8 @@
     "unstagedType": "unstaged",
     "original": "Original",
     "modified": "Modified",
+    "unchangedLines": "{{count}} unchanged lines, click to expand",
+    "degradedNotice": "Large file: showing changed hunks only",
     "commitSuccess": "Commit successful",
     "commitPushSuccess": "Commit & push successful",
     "commitFail": "Commit failed",

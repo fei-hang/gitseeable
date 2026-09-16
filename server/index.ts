@@ -1032,13 +1032,107 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
     if (!dirPath || !filePath || !type) {
       return res.status(400).json({ error: '缺少参数' });
     }
+    // 每次取新实例，避免缓存实例被 .env() 原地改状态
     const git = getGit(dirPath);
-    const args = ['diff', '--no-color'];
-    if (type === 'staged') args.push('--cached');
-    args.push('--', filePath);
-    const diffOutput = await git.raw(args);
-    const rows = parseDiff(diffOutput);
-    res.json({ filePath, type, rows });
+
+    // 超大文件阈值与单文件最大返回行数
+    const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB
+    const MAX_ROWS = 5000;
+
+    // (a) 未追踪文件单独取证：git diff 对 ?? 文件零输出，需直接读文件内容
+    let statusRaw = '';
+    try {
+      statusRaw = await git.raw(['status', '--porcelain', '--', filePath]);
+    } catch (_) {
+      statusRaw = '';
+    }
+    const isUntracked = statusRaw.replace(/\r/g, '').trim().startsWith('??');
+
+    if (isUntracked) {
+      const absPath = path.join(dirPath, filePath);
+      let canRenderAsAdd = true;
+      try {
+        const stat = fs.statSync(absPath);
+        if (stat.size > MAX_FILE_BYTES) {
+          canRenderAsAdd = false;
+        } else {
+          // 读取文件前 8192 字节，若含 NUL 字节则视为二进制文件
+          const fd = fs.openSync(absPath, 'r');
+          try {
+            const bufLen = Math.min(8192, stat.size);
+            const buf = Buffer.alloc(bufLen);
+            fs.readSync(fd, buf, 0, bufLen, 0);
+            if (buf.includes(0)) canRenderAsAdd = false;
+          } finally {
+            fs.closeSync(fd);
+          }
+        }
+      } catch (_) {
+        // 文件不存在或读取失败 → 保持空态（与旧行为一致，不算回归）
+        canRenderAsAdd = false;
+      }
+
+      if (!canRenderAsAdd) {
+        return res.json({ filePath, type, rows: [], degraded: false });
+      }
+
+      let content = fs.readFileSync(absPath, 'utf8');
+      if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1); // 去掉 BOM
+      let lines = content.split(/\r?\n/);
+      // 文件以换行结尾时 split 会产生一个末尾空串，git diff 不会为最后的换行单独成行，故去掉
+      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+
+      let degraded = false;
+      if (lines.length > MAX_ROWS) {
+        lines = lines.slice(0, MAX_ROWS);
+        degraded = true;
+      }
+
+      const rows: DiffRow[] = lines.map((line, i) => ({
+        oldLine: null, oldContent: null, oldType: null,
+        newLine: i + 1, newContent: line, newType: 'add',
+      }));
+      return res.json({ filePath, type, rows, degraded });
+    }
+
+    // 构造 diff 参数：full=true 放开上下文（-U1000000），否则默认 -U3
+    const buildArgs = (full: boolean): string[] => {
+      const args = ['diff', '--no-color'];
+      if (full) args.push('-U1000000');
+      if (type === 'staged') args.push('--cached');
+      args.push('--', filePath);
+      return args;
+    };
+
+    // (b)(c) 已追踪文件：先做廉价体积检查，超过阈值直接用 -U3
+    let degraded = false;
+    let useFullContext = true;
+    try {
+      let size = -1;
+      if (type === 'staged') {
+        const sizeStr = await git.raw(['cat-file', '-s', ':' + filePath]);
+        size = parseInt(sizeStr.trim(), 10);
+      } else {
+        size = fs.statSync(path.join(dirPath, filePath)).size;
+      }
+      if (Number.isFinite(size) && size > MAX_FILE_BYTES) {
+        useFullContext = false;
+        degraded = true;
+      }
+    } catch (_) {
+      // 体积检查失败（文件已删除、路径含特殊字符等）→ 跳过体积检查继续全文流程
+      useFullContext = true;
+    }
+
+    let rows = parseDiff(await git.raw(buildArgs(useFullContext)));
+
+    // 事后再兜一层：全文流程产出行数超上限则降级为默认 -U3
+    if (useFullContext && rows.length > MAX_ROWS) {
+      rows = parseDiff(await git.raw(buildArgs(false)));
+      degraded = true;
+    }
+
+    res.json({ filePath, type, rows, degraded });
   } catch (error: any) {
     console.error('获取文件diff时出错:', error);
     res.status(500).json({ error: error.message });

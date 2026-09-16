@@ -65,6 +65,11 @@ interface DiffRow {
   newType: string | null;
 }
 
+// 本地修改差异视图的“渲染行”：普通行直接渲染，折叠行横跨左右两侧
+type DiffRenderRow =
+  | { kind: 'line'; row: DiffRow; key: string }
+  | { kind: 'collapsed'; startIdx: number; count: number; key: string };
+
 interface CompareData {
   compareBranch: string;
   baseBranch: string;
@@ -129,6 +134,8 @@ function GitVisualizer() {
   const [selectedLocalFile, setSelectedLocalFile] = useState<string | null>(null);
   const [selectedLocalFileType, setSelectedLocalFileType] = useState<string | null>(null);
   const [localFileDiff, setLocalFileDiff] = useState<DiffRow[]>([]);
+  const [localFileDiffDegraded, setLocalFileDiffDegraded] = useState(false);
+  const [expandedDiffRuns, setExpandedDiffRuns] = useState<Set<number>>(new Set());
   const [localFileDiffLoading, setLocalFileDiffLoading] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [commitLoading, setCommitLoading] = useState(false);
@@ -877,8 +884,12 @@ function GitVisualizer() {
     try {
       const data = await fetchLocalFileDiff(currentPath, filePath, type);
       setLocalFileDiff(data.rows || []);
+      setLocalFileDiffDegraded(!!data.degraded);
+      setExpandedDiffRuns(new Set());
     } catch (_) {
       setLocalFileDiff([]);
+      setLocalFileDiffDegraded(false);
+      setExpandedDiffRuns(new Set());
     } finally {
       setLocalFileDiffLoading(false);
     }
@@ -1219,12 +1230,48 @@ function GitVisualizer() {
     }
   }, []);
 
+  const toggleDiffRun = useCallback((startIdx: number) => {
+    setExpandedDiffRuns(prev => {
+      const next = new Set(prev);
+      if (next.has(startIdx)) next.delete(startIdx);
+      else next.add(startIdx);
+      return next;
+    });
+  }, []);
+
+  // 把 DiffRow[] 映射成渲染行：连续 ≥4 行未修改内容压成一条折叠行（除非已展开）
+  const diffRenderRows = useMemo<DiffRenderRow[]>(() => {
+    const result: DiffRenderRow[] = [];
+    const rows = localFileDiff;
+    let i = 0;
+    while (i < rows.length) {
+      const r = rows[i];
+      if (r.oldType === 'normal' && r.newType === 'normal') {
+        let j = i;
+        while (j < rows.length && rows[j].oldType === 'normal' && rows[j].newType === 'normal') j++;
+        const count = j - i;
+        if (count >= 4 && !expandedDiffRuns.has(i)) {
+          result.push({ kind: 'collapsed', startIdx: i, count, key: `c-${i}` });
+        } else {
+          for (let k = i; k < j; k++) {
+            result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
+          }
+        }
+        i = j;
+      } else {
+        result.push({ kind: 'line', row: r, key: `l-${i}` });
+        i++;
+      }
+    }
+    return result;
+  }, [localFileDiff, expandedDiffRuns]);
+
   const diffVirtualRows = useMemo(() => {
-    const total = localFileDiff.length;
+    const total = diffRenderRows.length;
     const startIdx = Math.max(0, Math.floor(diffScrollTop / ROW_HEIGHT) - SCROLL_BUFFER);
     const endIdx = Math.min(total, Math.ceil((diffScrollTop + diffContainerHeight) / ROW_HEIGHT) + SCROLL_BUFFER);
-    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: localFileDiff.slice(startIdx, endIdx) };
-  }, [localFileDiff, diffScrollTop, diffContainerHeight]);
+    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: diffRenderRows.slice(startIdx, endIdx) };
+  }, [diffRenderRows, diffScrollTop, diffContainerHeight]);
 
   useEffect(() => {
     setDiffScrollTop(0);
@@ -1709,6 +1756,7 @@ function GitVisualizer() {
                       <div className="local-diff-header">
                         <span className="local-diff-file">{selectedLocalFile}</span>
                         <span className="local-diff-type">{selectedLocalFileType === 'staged' ? t('local.stagedType') : t('local.unstagedType')}</span>
+                        {localFileDiffDegraded && <span className="local-diff-notice">{t('local.degradedNotice')}</span>}
                       </div>
                       <div className="side-by-side-diff">
                         <div className="side-by-side-header">
@@ -1719,10 +1767,25 @@ function GitVisualizer() {
                           <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
                           <div style={{ height: diffVirtualRows.total * ROW_HEIGHT, position: 'relative' }}>
                             <div style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
-                              {diffVirtualRows.visible.map((row, i) => {
-                                const idx = diffVirtualRows.startIdx + i;
+                              {diffVirtualRows.visible.map((item) => {
+                                if (item.kind === 'collapsed') {
+                                  return (
+                                    <div
+                                      key={item.key}
+                                      className="diff-row diff-row--collapsed"
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => toggleDiffRun(item.startIdx)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDiffRun(item.startIdx); } }}
+                                    >
+                                      <div className="diff-wave" aria-hidden="true" />
+                                      <span className="diff-collapse-label">{t('local.unchangedLines', { count: item.count })}</span>
+                                    </div>
+                                  );
+                                }
+                                const row = item.row;
                                 return (
-                                  <div key={idx} className="diff-row">
+                                  <div key={item.key} className="diff-row">
                                     {row.oldContent !== null ? (
                                       <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
                                         <span className="diff-line-num">{row.oldLine}</span>
