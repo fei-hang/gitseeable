@@ -1265,6 +1265,40 @@ app.post('/api/local-unstage-files', async (req: Request, res: Response) => {
   }
 });
 
+// 提交前过滤「真正可提交」的勾选文件，避免把无法提交的路径交给 git add（会 pathspec 报错 → 500）。
+// - 工作区存在该路径 → 保留（新增 / 修改 / 已暂存的修改）；
+// - 工作区不存在 → 若 HEAD 中仍存在该路径，说明是「已暂存的删除」，必须保留（否则删不掉）；
+//   否则（如 AD：先 git add、随后又删掉工作区文件）该路径既不在工作区也不在 HEAD，
+//   清空索引后会彻底从 git 视野消失，无法提交 → 归入 skipped 友好跳过。
+// 性能：只有工作区不存在的文件才会触发额外的 git 调用，正常提交几乎零额外开销。
+async function resolveCommitFiles(
+  git: ReturnType<typeof getGit>,
+  dirPath: string,
+  selectedFiles: string[],
+): Promise<{ keep: string[]; skipped: string[] }> {
+  const keep: string[] = [];
+  const skipped: string[] = [];
+  for (const file of selectedFiles) {
+    if (fs.existsSync(path.join(dirPath, file))) {
+      keep.push(file);
+      continue;
+    }
+    let inHead = false;
+    try {
+      await git.raw(['cat-file', '-e', 'HEAD:' + file]);
+      inHead = true;
+    } catch (_) {
+      inHead = false;
+    }
+    if (inHead) {
+      keep.push(file);
+    } else {
+      skipped.push(file);
+    }
+  }
+  return { keep, skipped };
+}
+
 // 本地提交（仅提交选中的文件）
 app.post('/api/local-commit', async (req: Request, res: Response) => {
   try {
@@ -1276,14 +1310,22 @@ app.post('/api/local-commit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '请选择要提交的文件' });
     }
     const git = getGit(dirPath);
-    await git.reset();
+    // 先过滤、再动索引：若没有任何可提交内容，直接 400 返回，避免破坏用户当前索引。
+    const { keep, skipped } = await resolveCommitFiles(git, dirPath, selectedFiles);
+    if (keep.length === 0) {
+      return res.status(400).json({ error: '选中的文件没有可提交的改动' });
+    }
+    // 关键：必须先清空索引、再只 add 勾选文件。
+    // simple-git 的 git.reset() 不带参数等价于 --soft（实为 no-op），并不会清空索引，
+    // 会导致「已暂存但本次未勾选」的文件被一起提交。必须显式 --mixed 才能真正重置索引。
+    await git.raw(['reset', '--mixed']);
     const BATCH_SIZE = 100;
-    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
-      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < keep.length; i += BATCH_SIZE) {
+      const batch = keep.slice(i, i + BATCH_SIZE);
       await git.add(batch);
     }
     await git.commit(message);
-    res.json({ ok: true });
+    res.json({ ok: true, skipped });
   } catch (error: any) {
     console.error('提交时出错:', error);
     res.status(500).json({ error: error.message });
@@ -1301,16 +1343,24 @@ app.post('/api/local-commit-push', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '请选择要提交的文件' });
     }
     const git = getGit(dirPath);
-    await git.reset();
+    // 与 /api/local-commit 一致：先过滤、再动索引，保留集为空时直接 400 且不破坏索引。
+    const { keep, skipped } = await resolveCommitFiles(git, dirPath, selectedFiles);
+    if (keep.length === 0) {
+      return res.status(400).json({ error: '选中的文件没有可提交的改动' });
+    }
+    // 关键：必须先清空索引、再只 add 勾选文件。
+    // simple-git 的 git.reset() 不带参数等价于 --soft（实为 no-op），并不会清空索引，
+    // 会导致「已暂存但本次未勾选」的文件被一起提交。必须显式 --mixed 才能真正重置索引。
+    await git.raw(['reset', '--mixed']);
     const BATCH_SIZE = 100;
-    for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
-      const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < keep.length; i += BATCH_SIZE) {
+      const batch = keep.slice(i, i + BATCH_SIZE);
       await git.add(batch);
     }
     await git.commit(message);
     const branch = (await git.branchLocal()).current;
     await git.push('origin', branch);
-    res.json({ ok: true, branch });
+    res.json({ ok: true, branch, skipped });
   } catch (error: any) {
     console.error('提交并推送时出错:', error);
     const remoteDirPath = req.body.dirPath;
