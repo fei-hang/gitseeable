@@ -1323,6 +1323,8 @@
 .diff-row--collapsed {
   display: block;              /* 覆盖 .diff-row 的 flex */
   position: relative;
+  box-sizing: border-box;      /* 让 1px 上下边框算进固定高度内 */
+  height: 18px;                /* 与实测的普通 .diff-row 高度(18px)严格等高 */
   cursor: pointer;
   background: var(--background-alt);
   border-top: 1px solid var(--border-light);
@@ -1344,7 +1346,8 @@
 .diff-collapse-label {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);   /* 水平+垂直居中 */
   padding: 1px 8px;
   background: var(--background-alt);
   border-radius: 999px;

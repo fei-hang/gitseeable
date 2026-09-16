@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import Swal from 'sweetalert2';
@@ -1268,10 +1268,18 @@ function GitVisualizer() {
 
   const diffVirtualRows = useMemo(() => {
     const total = diffRenderRows.length;
-    const startIdx = Math.max(0, Math.floor(diffScrollTop / ROW_HEIGHT) - SCROLL_BUFFER);
+    const maxStart = Math.max(0, total - 1);
+    const startIdx = Math.min(maxStart, Math.max(0, Math.floor(diffScrollTop / ROW_HEIGHT) - SCROLL_BUFFER));
     const endIdx = Math.min(total, Math.ceil((diffScrollTop + diffContainerHeight) / ROW_HEIGHT) + SCROLL_BUFFER);
-    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: diffRenderRows.slice(startIdx, endIdx) };
+    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: diffRenderRows.slice(startIdx, Math.max(startIdx, endIdx)) };
   }, [diffRenderRows, diffScrollTop, diffContainerHeight]);
+
+  // 折叠/展开导致渲染行数变化后，若当前 scrollTop 超出新高度，浏览器会将其钳制；
+  // 这里在绘制前把真实 scrollTop 同步回 state，避免虚拟窗口定位到容器外造成整片空白。
+  useLayoutEffect(() => {
+    const el = diffVirtualRef.current;
+    if (el) setDiffScrollTop(el.scrollTop);
+  }, [diffRenderRows.length]);
 
   useEffect(() => {
     setDiffScrollTop(0);

@@ -1036,7 +1036,8 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
     const git = getGit(dirPath);
 
     // 超大文件阈值与单文件最大返回行数
-    const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB
+    const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB，已追踪文件的降级阈值
+    const MAX_UNTRACKED_BYTES = 50 * 1024 * 1024; // 50MB，未追踪文件仅用于防 OOM 的保护上限
     const MAX_ROWS = 5000;
 
     // (a) 未追踪文件单独取证：git diff 对 ?? 文件零输出，需直接读文件内容
@@ -1053,7 +1054,8 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
       let canRenderAsAdd = true;
       try {
         const stat = fs.statSync(absPath);
-        if (stat.size > MAX_FILE_BYTES) {
+        if (stat.size > MAX_UNTRACKED_BYTES) {
+          // 仅防 OOM：超大文件才放弃渲染，否则交由下方 MAX_ROWS 截断 + degraded 提示接管
           canRenderAsAdd = false;
         } else {
           // 读取文件前 8192 字节，若含 NUL 字节则视为二进制文件
