@@ -1265,11 +1265,41 @@ app.post('/api/local-unstage-files', async (req: Request, res: Response) => {
   }
 });
 
+// 读取当前索引里的「已暂存」条目（-z：NUL 分隔，git 不对路径做引号/八进制转义）。
+// 重命名/复制在 -z 下会紧跟一个裸路径条目作为「原路径」，这里把它一并读出，
+// 供「只重置未勾选条目」时判定重命名「删旧」半边的去留。
+async function getStagedEntries(
+  git: ReturnType<typeof getGit>,
+): Promise<{ newPath: string; oldPath: string | null; status: string }[]> {
+  const raw = await git.raw(['status', '--porcelain', '-z']);
+  const entries = raw.split('\0');
+  if (entries.length > 0 && entries[entries.length - 1] === '') entries.pop();
+  const result: { newPath: string; oldPath: string | null; status: string }[] = [];
+  for (let n = 0; n < entries.length; n++) {
+    const entry = entries[n];
+    if (!entry || entry.length < 3) continue;
+    const idx = entry[0];
+    const wd = entry[1];
+    const filePath = entry.slice(3);
+    let oldPath: string | null = null;
+    // -z 模式：重命名/复制时，当前条目是【新路径】，紧随其后的条目是【原路径】，需消费掉
+    if (idx === 'R' || idx === 'C' || wd === 'R' || wd === 'C') {
+      const next = entries[n + 1] ?? '';
+      oldPath = next ? next.replace(/\/$/, '') : null;
+      n++;
+    }
+    if (idx !== ' ' && idx !== '?' && idx !== '!') {
+      result.push({ newPath: filePath.replace(/\/$/, ''), oldPath, status: idx });
+    }
+  }
+  return result;
+}
+
 // 提交前过滤「真正可提交」的勾选文件，避免把无法提交的路径交给 git add（会 pathspec 报错 → 500）。
 // - 工作区存在该路径 → 保留（新增 / 修改 / 已暂存的修改）；
 // - 工作区不存在 → 若 HEAD 中仍存在该路径，说明是「已暂存的删除」，必须保留（否则删不掉）；
 //   否则（如 AD：先 git add、随后又删掉工作区文件）该路径既不在工作区也不在 HEAD，
-//   清空索引后会彻底从 git 视野消失，无法提交 → 归入 skipped 友好跳过。
+//   无法提交 → 归入 skipped 友好跳过。
 // 性能：只有工作区不存在的文件才会触发额外的 git 调用，正常提交几乎零额外开销。
 async function resolveCommitFiles(
   git: ReturnType<typeof getGit>,
@@ -1299,6 +1329,59 @@ async function resolveCommitFiles(
   return { keep, skipped };
 }
 
+// 只把「未勾选」的已暂存条目从索引里移除——绝不清空整个索引。
+// 必须按【条目】处理：重命名在索引里是「删旧 + 加新」两个条目，而 /api/local-status 只暴露新路径。
+// 若整清索引，勾选的重命名会丢掉「删旧」半边（旧文件在提交里复活）；
+// 若只按新路径 reset 未勾选的重命名，又会只删旧、不做新增（反向灾难）。
+// 因此以「新路径是否被勾选」判定整个条目的去留：勾选条目的索引原样保留（重命名 / 部分暂存等状态不丢），
+// 仅对未勾选条目做 path-limited 的 `reset --mixed -- <paths>`（分批，规避 Windows 命令行长度上限）。
+async function unstageEntriesNotSelected(
+  git: ReturnType<typeof getGit>,
+  keep: string[],
+  stagedEntries: { newPath: string; oldPath: string | null; status: string }[],
+): Promise<void> {
+  const keepSet = new Set(keep.map((p) => p.replace(/\/$/, '')));
+  const resetPaths: string[] = [];
+  const seen = new Set<string>();
+  for (const e of stagedEntries) {
+    if (keepSet.has(e.newPath)) continue; // 该条目被勾选 → 索引条目完全保留
+    const candidates = e.oldPath ? [e.newPath, e.oldPath] : [e.newPath];
+    for (const p of candidates) {
+      if (!seen.has(p)) {
+        seen.add(p);
+        resetPaths.push(p);
+      }
+    }
+  }
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < resetPaths.length; i += BATCH_SIZE) {
+    await git.raw(['reset', '--mixed', '--', ...resetPaths.slice(i, i + BATCH_SIZE)]);
+  }
+}
+
+// 两个提交端点共用的「准备」逻辑：过滤 → (无可提交内容则返回 ok=false) → 只重置未勾选条目 → 分批 add 勾选文件。
+// ok=false 时不触碰索引（先过滤、后动索引），由调用方返回 400。
+async function prepareCommit(
+  git: ReturnType<typeof getGit>,
+  dirPath: string,
+  selectedFiles: string[],
+): Promise<{ ok: false } | { ok: true; skipped: string[] }> {
+  const { keep, skipped } = await resolveCommitFiles(git, dirPath, selectedFiles);
+  if (keep.length === 0) return { ok: false };
+  const stagedEntries = await getStagedEntries(git);
+  await unstageEntriesNotSelected(git, keep, stagedEntries);
+  // 只 add「工作区存在」或「仍在索引中」的勾选路径：
+  // 已暂存的删除（status=D）此时既不在工作区、索引里也没有它的条目，再 add 会报
+  // "pathspec did not match any files"；而且它本就已暂存，无需再动。
+  const stagedDeleted = new Set(stagedEntries.filter((e) => e.status === 'D').map((e) => e.newPath));
+  const addPaths = keep.filter((p) => !stagedDeleted.has(p.replace(/\/$/, '')));
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < addPaths.length; i += BATCH_SIZE) {
+    await git.add(addPaths.slice(i, i + BATCH_SIZE));
+  }
+  return { ok: true, skipped };
+}
+
 // 本地提交（仅提交选中的文件）
 app.post('/api/local-commit', async (req: Request, res: Response) => {
   try {
@@ -1310,22 +1393,12 @@ app.post('/api/local-commit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '请选择要提交的文件' });
     }
     const git = getGit(dirPath);
-    // 先过滤、再动索引：若没有任何可提交内容，直接 400 返回，避免破坏用户当前索引。
-    const { keep, skipped } = await resolveCommitFiles(git, dirPath, selectedFiles);
-    if (keep.length === 0) {
+    const prep = await prepareCommit(git, dirPath, selectedFiles);
+    if (!prep.ok) {
       return res.status(400).json({ error: '选中的文件没有可提交的改动' });
     }
-    // 关键：必须先清空索引、再只 add 勾选文件。
-    // simple-git 的 git.reset() 不带参数等价于 --soft（实为 no-op），并不会清空索引，
-    // 会导致「已暂存但本次未勾选」的文件被一起提交。必须显式 --mixed 才能真正重置索引。
-    await git.raw(['reset', '--mixed']);
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < keep.length; i += BATCH_SIZE) {
-      const batch = keep.slice(i, i + BATCH_SIZE);
-      await git.add(batch);
-    }
     await git.commit(message);
-    res.json({ ok: true, skipped });
+    res.json({ ok: true, skipped: prep.skipped });
   } catch (error: any) {
     console.error('提交时出错:', error);
     res.status(500).json({ error: error.message });
@@ -1343,24 +1416,15 @@ app.post('/api/local-commit-push', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '请选择要提交的文件' });
     }
     const git = getGit(dirPath);
-    // 与 /api/local-commit 一致：先过滤、再动索引，保留集为空时直接 400 且不破坏索引。
-    const { keep, skipped } = await resolveCommitFiles(git, dirPath, selectedFiles);
-    if (keep.length === 0) {
+    // 与 /api/local-commit 完全一致：走同一个 prepareCommit（过滤 → 只重置未勾选条目 → add 勾选）。
+    const prep = await prepareCommit(git, dirPath, selectedFiles);
+    if (!prep.ok) {
       return res.status(400).json({ error: '选中的文件没有可提交的改动' });
-    }
-    // 关键：必须先清空索引、再只 add 勾选文件。
-    // simple-git 的 git.reset() 不带参数等价于 --soft（实为 no-op），并不会清空索引，
-    // 会导致「已暂存但本次未勾选」的文件被一起提交。必须显式 --mixed 才能真正重置索引。
-    await git.raw(['reset', '--mixed']);
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < keep.length; i += BATCH_SIZE) {
-      const batch = keep.slice(i, i + BATCH_SIZE);
-      await git.add(batch);
     }
     await git.commit(message);
     const branch = (await git.branchLocal()).current;
     await git.push('origin', branch);
-    res.json({ ok: true, branch, skipped });
+    res.json({ ok: true, branch, skipped: prep.skipped });
   } catch (error: any) {
     console.error('提交并推送时出错:', error);
     const remoteDirPath = req.body.dirPath;
