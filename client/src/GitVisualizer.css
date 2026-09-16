@@ -1345,9 +1345,9 @@
 
 .diff-collapse-label {
   position: absolute;
-  left: 50%;
+  left: 12px;                            /* 左对齐，避开 .diff-handle 的中央竖条死区 */
   top: 50%;
-  transform: translate(-50%, -50%);   /* 水平+垂直居中 */
+  transform: translateY(-50%);           /* 仅垂直居中 */
   padding: 1px 8px;
   background: var(--background-alt);
   border-radius: 999px;
@@ -1374,9 +1374,9 @@
 
 .diff-toggle-label {
   position: absolute;
-  left: 50%;
+  left: 12px;                            /* 左对齐，避开 .diff-handle 的中央竖条死区 */
   top: 50%;
-  transform: translate(-50%, -50%);   /* 水平+垂直居中 */
+  transform: translateY(-50%);           /* 仅垂直居中 */
   padding: 1px 8px;
   background: var(--background-alt);
   border-radius: 999px;
