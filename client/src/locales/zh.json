@@ -50,6 +50,7 @@
     "original": "原始文件",
     "modified": "修改后的文件",
     "unchangedLines": "{{count}} 行未修改，点击展开",
+    "collapseLines": "收起 {{count}} 行未修改内容",
     "degradedNotice": "文件过大，仅显示改动区域",
     "commitSuccess": "提交成功",
     "commitPushSuccess": "提交并推送成功",

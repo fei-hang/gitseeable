@@ -65,10 +65,11 @@ interface DiffRow {
   newType: string | null;
 }
 
-// 本地修改差异视图的“渲染行”：普通行直接渲染，折叠行横跨左右两侧
+// 本地修改差异视图的“渲染行”：普通行直接渲染，折叠/收起行横跨左右两侧
 type DiffRenderRow =
   | { kind: 'line'; row: DiffRow; key: string }
-  | { kind: 'collapsed'; startIdx: number; count: number; key: string };
+  | { kind: 'collapsed'; startIdx: number; count: number; key: string }
+  | { kind: 'toggle'; startIdx: number; count: number; key: string };
 
 interface CompareData {
   compareBranch: string;
@@ -1250,8 +1251,15 @@ function GitVisualizer() {
         let j = i;
         while (j < rows.length && rows[j].oldType === 'normal' && rows[j].newType === 'normal') j++;
         const count = j - i;
-        if (count >= 4 && !expandedDiffRuns.has(i)) {
-          result.push({ kind: 'collapsed', startIdx: i, count, key: `c-${i}` });
+        if (count >= 4) {
+          if (expandedDiffRuns.has(i)) {
+            result.push({ kind: 'toggle', startIdx: i, count, key: `t-${i}` });
+            for (let k = i; k < j; k++) {
+              result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
+            }
+          } else {
+            result.push({ kind: 'collapsed', startIdx: i, count, key: `c-${i}` });
+          }
         } else {
           for (let k = i; k < j; k++) {
             result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
@@ -1788,6 +1796,20 @@ function GitVisualizer() {
                                     >
                                       <div className="diff-wave" aria-hidden="true" />
                                       <span className="diff-collapse-label">{t('local.unchangedLines', { count: item.count })}</span>
+                                    </div>
+                                  );
+                                }
+                                if (item.kind === 'toggle') {
+                                  return (
+                                    <div
+                                      key={item.key}
+                                      className="diff-row diff-row--toggle"
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => toggleDiffRun(item.startIdx)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDiffRun(item.startIdx); } }}
+                                    >
+                                      <span className="diff-toggle-label">{t('local.collapseLines', { count: item.count })}</span>
                                     </div>
                                   );
                                 }

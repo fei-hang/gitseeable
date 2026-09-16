@@ -50,6 +50,7 @@
     "original": "Original",
     "modified": "Modified",
     "unchangedLines": "{{count}} unchanged lines, click to expand",
+    "collapseLines": "Collapse {{count}} unchanged lines",
     "degradedNotice": "Large file: showing changed hunks only",
     "commitSuccess": "Commit successful",
     "commitPushSuccess": "Commit & push successful",

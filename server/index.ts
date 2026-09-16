@@ -993,21 +993,25 @@ app.post('/api/local-status', async (req: Request, res: Response) => {
     const { dirPath } = req.body;
     if (!dirPath) return res.status(400).json({ error: '缺少参数' });
     const git = getGit(dirPath);
-    const raw = await git.raw(['status', '--porcelain']);
+    // 用 -z：NUL 分隔，git 不对路径做引号 / 八进制转义，含空格与中文的路径可直接使用
+    const raw = await git.raw(['status', '--porcelain', '-z']);
     const staged: StatusEntry[] = [];
     const unstaged: StatusEntry[] = [];
-    const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.length >= 3);
-    for (const line of lines) {
-      const idx = line[0];
-      const wd = line[1];
-      let filePath = line.slice(3);
-      // Handle renamed files: git status --porcelain outputs "R  oldpath -> newpath"
-      // Use the new path (after " -> ") for all operations
-      if (filePath.includes(' -> ')) {
-        filePath = filePath.split(' -> ').pop()!.trim();
+    const entries = raw.split('\0');
+    // 去掉结尾 NUL 产生的空串
+    if (entries.length > 0 && entries[entries.length - 1] === '') entries.pop();
+    for (let n = 0; n < entries.length; n++) {
+      const entry = entries[n];
+      if (!entry || entry.length < 3) continue;
+      const idx = entry[0];
+      const wd = entry[1];
+      const filePath = entry.slice(3);
+      // -z 模式下重命名/复制：当前条目是【新路径】，紧接着的下一个 NUL 条目是【原路径】，需消费掉
+      if (idx === 'R' || idx === 'C' || wd === 'R' || wd === 'C') {
+        n++;
       }
       if (idx === 'U' || wd === 'U') continue;
-      // 移除目录斜杠后缀（git status --porcelain 对未追踪目录输出 dirname/）
+      // 移除目录斜杠后缀（git 对未追踪目录输出 dirname/）
       const cleanPath = filePath.replace(/\/$/, '');
       if (idx !== ' ' && idx !== '?' && idx !== '!') {
         staged.push({ path: cleanPath, status: idx === 'M' ? 'modified' : idx === 'A' ? 'added' : idx === 'D' ? 'deleted' : idx === 'R' ? 'renamed' : idx });
@@ -1041,21 +1045,23 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
     const MAX_ROWS = 5000;
 
     // (a) 未追踪文件单独取证：git diff 对 ?? 文件零输出，需直接读文件内容
+    // 用 -z 避免 git 对含空格/非 ASCII 的路径加引号转义，路径口径与 /api/local-status 一致
     let statusRaw = '';
     try {
-      statusRaw = await git.raw(['status', '--porcelain', '--', filePath]);
+      statusRaw = await git.raw(['status', '--porcelain', '-z', '--', filePath]);
     } catch (_) {
       statusRaw = '';
     }
-    const isUntracked = statusRaw.replace(/\r/g, '').trim().startsWith('??');
+    const isUntracked = statusRaw.slice(0, 2) === '??';
 
     if (isUntracked) {
       const absPath = path.join(dirPath, filePath);
       let canRenderAsAdd = true;
       try {
         const stat = fs.statSync(absPath);
-        if (stat.size > MAX_UNTRACKED_BYTES) {
-          // 仅防 OOM：超大文件才放弃渲染，否则交由下方 MAX_ROWS 截断 + degraded 提示接管
+        if (!stat.isFile() || stat.size > MAX_UNTRACKED_BYTES) {
+          // 目录 / 非常规文件，或仅防 OOM 的超大文件：放弃渲染；
+          // 常规文件即使很大，也会交由下方 MAX_ROWS 截断 + degraded 提示接管
           canRenderAsAdd = false;
         } else {
           // 读取文件前 8192 字节，若含 NUL 字节则视为二进制文件
@@ -1078,11 +1084,18 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
         return res.json({ filePath, type, rows: [], degraded: false });
       }
 
-      let content = fs.readFileSync(absPath, 'utf8');
-      if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1); // 去掉 BOM
-      let lines = content.split(/\r?\n/);
-      // 文件以换行结尾时 split 会产生一个末尾空串，git diff 不会为最后的换行单独成行，故去掉
-      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+      // 纵深防御：stat 之后文件可能被删除/换成目录（EISDIR 等竞态），
+      // 任何读取异常都优雅降级为空态，而不是冒泡成 500
+      let lines: string[];
+      try {
+        let content = fs.readFileSync(absPath, 'utf8');
+        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1); // 去掉 BOM
+        lines = content.split(/\r?\n/);
+        // 文件以换行结尾时 split 会产生一个末尾空串，git diff 不会为最后的换行单独成行，故去掉
+        if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+      } catch (_) {
+        return res.json({ filePath, type, rows: [], degraded: false });
+      }
 
       let degraded = false;
       if (lines.length > MAX_ROWS) {
