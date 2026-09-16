@@ -150,6 +150,16 @@ function GitVisualizer() {
   const [conflictTheirsBranch, setConflictTheirsBranch] = useState<string | null>(null);
   const [skipDropConfirm, setSkipDropConfirm] = useState(false);
 
+  // 同时存在于 staged 与 unstaged 的路径（AM / MM 这类）按用户要求只在「已暂存」侧展示
+  const stagedPathSet = useMemo(
+    () => new Set((localStatus?.staged ?? []).map(f => f.path)),
+    [localStatus]
+  );
+  const unstagedVisible = useMemo(
+    () => (localStatus?.unstaged ?? []).filter(f => !stagedPathSet.has(f.path)),
+    [localStatus, stagedPathSet]
+  );
+
   useEffect(() => {
     (async () => {
       setInitialLoading(true);
@@ -905,15 +915,23 @@ function GitVisualizer() {
       const stagedSel: Record<string, boolean> = {};
       data.staged.forEach((f: LocalStatusEntry) => { stagedSel[f.path] = true; });
       setSelectedStagedFiles(stagedSel);
-      setSelectedUnstagedFiles({});
+      // 未暂存列表已在展示层按「排除已暂存路径」过滤；此处把选中态同步裁剪为只保留可见路径，
+      // 避免 AM 文件的残留勾选被后续「暂存 / 回退 / 提交」误用
+      const stagedSet = new Set((data.staged || []).map(f => f.path));
+      const visibleUnstaged = (data.unstaged || []).filter(f => !stagedSet.has(f.path));
+      setSelectedUnstagedFiles(prev => {
+        const next: Record<string, boolean> = {};
+        for (const f of visibleUnstaged) if (prev[f.path]) next[f.path] = true;
+        return next;
+      });
       if (data.staged.length > 0) {
         setSelectedLocalFile(data.staged[0].path);
         setSelectedLocalFileType('staged');
         await loadFileDiff(data.staged[0].path, 'staged');
-      } else if (data.unstaged.length > 0) {
-        setSelectedLocalFile(data.unstaged[0].path);
+      } else if (visibleUnstaged.length > 0) {
+        setSelectedLocalFile(visibleUnstaged[0].path);
         setSelectedLocalFileType('unstaged');
-        await loadFileDiff(data.unstaged[0].path, 'unstaged');
+        await loadFileDiff(visibleUnstaged[0].path, 'unstaged');
       } else {
         setSelectedLocalFile(null);
         setSelectedLocalFileType(null);
@@ -952,12 +970,12 @@ function GitVisualizer() {
   const [restoreLoading, setRestoreLoading] = useState(false);
 
   const handleRestoreSelected = async () => {
-    const selectedPaths = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k]);
-    if (selectedPaths.length === 0) {
+    // 只处理当前可见的未暂存项，避免隐藏项（已暂存侧的同名文件）被回退误伤
+    const selectedObjs = unstagedVisible.filter(f => selectedUnstagedFiles[f.path]);
+    if (selectedObjs.length === 0) {
       Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
       return;
     }
-    const selectedObjs = (localStatus?.unstaged || []).filter(f => selectedUnstagedFiles[f.path]);
     const restorable = selectedObjs.filter(f => f.status !== 'untracked');
     const toDelete = selectedObjs.filter(f => f.status === 'untracked');
     let confirmText: string;
@@ -1002,7 +1020,9 @@ function GitVisualizer() {
   };
 
   const handleStageSelected = async () => {
-    const selectedFiles = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k]);
+    // 只暂存当前可见的未暂存项（已暂存侧的同名文件不出现在此列表，也不应被此处顺带再次暂存）
+    const visiblePaths = new Set(unstagedVisible.map(f => f.path));
+    const selectedFiles = Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k] && visiblePaths.has(k));
     if (selectedFiles.length === 0) {
       Swal.fire({ icon: 'warning', title: t('local.noFilesSelected') });
       return;
@@ -1053,15 +1073,17 @@ function GitVisualizer() {
 
   const handleToggleAllUnstaged = () => {
     if (!localStatus) return;
-    const allSelected = localStatus.unstaged.every(f => selectedUnstagedFiles[f.path]);
+    const allSelected = unstagedVisible.every(f => selectedUnstagedFiles[f.path]);
     const next: Record<string, boolean> = {};
-    localStatus.unstaged.forEach(f => { next[f.path] = !allSelected; });
+    unstagedVisible.forEach(f => { next[f.path] = !allSelected; });
     setSelectedUnstagedFiles(next);
   };
 
   const getSelectedFiles = (): string[] => [
+    // 已暂存侧保持原样（勾选即提交）
     ...Object.keys(selectedStagedFiles).filter(k => selectedStagedFiles[k]),
-    ...Object.keys(selectedUnstagedFiles).filter(k => selectedUnstagedFiles[k])
+    // 未暂存侧只取可见且被勾选的路径
+    ...unstagedVisible.filter(f => selectedUnstagedFiles[f.path]).map(f => f.path)
   ];
 
   const handleCommit = async () => {
@@ -1720,12 +1742,12 @@ function GitVisualizer() {
                             <label className="file-section-checkall">
                               <input
                                 type="checkbox"
-                                checked={localStatus.unstaged.length > 0 && localStatus.unstaged.every(f => selectedUnstagedFiles[f.path])}
+                                checked={unstagedVisible.length > 0 && unstagedVisible.every(f => selectedUnstagedFiles[f.path])}
                                 onChange={handleToggleAllUnstaged}
                               />
-                              <span className="file-section-title">{t('local.unstaged')} ({localStatus.unstaged.length})</span>
+                              <span className="file-section-title">{t('local.unstaged')} ({unstagedVisible.length})</span>
                             </label>
-                            {localStatus.unstaged.length > 0 && (
+                            {unstagedVisible.length > 0 && (
                               <div className="commit-actions-wrap">
                                 {stageLoading && <div className="commit-progress-bar" />}
                                 <button className="btn btn--danger btn--stage" disabled={restoreLoading} onClick={handleRestoreSelected}>{t('local.restore')}</button>
@@ -1734,10 +1756,10 @@ function GitVisualizer() {
                             )}
                           </div>
                           <div className="file-section-list">
-                          {localStatus.unstaged.length === 0 ? (
+                          {unstagedVisible.length === 0 ? (
                             <p className="file-section-empty">{t('local.noUnstaged')}</p>
                           ) : (
-                            localStatus.unstaged.map((f) => (
+                            unstagedVisible.map((f) => (
                               <div key={f.path} className="file-item-row">
                                 <label className="file-item-checkbox">
                                   <input
