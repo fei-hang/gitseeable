@@ -1370,10 +1370,18 @@ async function prepareCommit(
   if (keep.length === 0) return { ok: false };
   const stagedEntries = await getStagedEntries(git);
   await unstageEntriesNotSelected(git, keep, stagedEntries);
-  // 只 add「工作区存在」或「仍在索引中」的勾选路径：
-  // 已暂存的删除（status=D）此时既不在工作区、索引里也没有它的条目，再 add 会报
-  // "pathspec did not match any files"；而且它本就已暂存，无需再动。
-  const stagedDeleted = new Set(stagedEntries.filter((e) => e.status === 'D').map((e) => e.newPath));
+  // 只跳过「真正的工作区删除」：索引状态 D 仅表示「相对 HEAD 是删除」，并不代表工作区里没有该文件。
+  // 反例：`git rm p.txt` 后又重建 p.txt —— porcelain 会同时给出 `D  p.txt` 与 `?? p.txt`，
+  // 此时工作区存在 p.txt（应当提交其最新内容）；若只按 status==='D' 跳过 add，
+  // 重建出来的内容就会被漏掉（HEAD 仍是删除，工作区残留 `?? p.txt`）。
+  // 因此这里必须同时满足「索引 D」且「工作区确实不存在」，才从 add 列表剔除。
+  // （工作区确实不存在且索引无该条目时，再 add 会报 "pathspec did not match any files"；
+  //   而这类已暂存的删除本就无需再动。）
+  const stagedDeleted = new Set(
+    stagedEntries
+      .filter((e) => e.status === 'D' && !fs.existsSync(path.join(dirPath, e.newPath)))
+      .map((e) => e.newPath),
+  );
   const addPaths = keep.filter((p) => !stagedDeleted.has(p.replace(/\/$/, '')));
   const BATCH_SIZE = 100;
   for (let i = 0; i < addPaths.length; i += BATCH_SIZE) {
