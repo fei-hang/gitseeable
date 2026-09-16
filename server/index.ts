@@ -15,6 +15,24 @@ function getGit(dirPath: string) {
   return simpleGit(dirPath);
 }
 
+// 大仓库阈值：祖先探测返回的提交数超过该值时，回退到逐提交判定。
+const LARGE_REPO_COMMITS = 50_000;
+const PROBE_MAX = LARGE_REPO_COMMITS + 1;
+
+// single-flight：相同 key 的在途请求复用同一个 Promise，避免重复 spawn git。
+const inflightGraph = new Map<string, Promise<any>>();
+
+async function withSingleFlight<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const existing = inflightGraph.get(key);
+  if (existing) return existing;
+  const p = (async () => {
+    try { return await task(); }
+    finally { inflightGraph.delete(key); }
+  })();
+  inflightGraph.set(key, p);
+  return p;
+}
+
 // 检查目录是否为Git仓库并获取分支信息
 app.post('/api/check-git', async (req: Request, res: Response) => {
   try {
@@ -223,11 +241,21 @@ interface GraphRow {
   } | null;
 }
 
-// 获取提交历史分支图
-app.post('/api/commit-graph', async (req: Request, res: Response) => {
-  try {
-    const { dirPath, page = 1, pageSize = 50, branch } = req.body;
-    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+interface CommitGraphPayload {
+  rows: GraphRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  headHash?: string;
+}
+
+// 纯计算：取数、解析、插入连接行、判定祖先与待推送，返回 payload（不触碰 res）。
+async function computeCommitGraph(
+  dirPath: string,
+  page: number,
+  pageSize: number,
+  branch?: string
+): Promise<CommitGraphPayload> {
     const git = getGit(dirPath);
 
     const revListArgs = branch ? ['rev-list', branch, '--count'] : ['rev-list', '--all', '--count'];
@@ -243,7 +271,7 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
 
     const raw = await git.raw(args);
     if (!raw.trim()) {
-      return res.json({ rows: [], total, page, pageSize });
+      return { rows: [], total, page, pageSize };
     }
 
     const headHash = (await git.raw(['rev-parse', 'HEAD'])).trim();
@@ -287,16 +315,33 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
       finalRows.push(rows[i]);
     }
     const commitHashes = finalRows.filter(r => r.commit).map(r => r.commit!.hash);
-    const headAncestorResults = await Promise.all(
-      commitHashes.map(async h => {
-        try {
-          const base = await git.raw(['merge-base', 'HEAD', h]);
-          return base.trim() === h;
-        } catch { return false; }
-      })
-    );
     const headAncestorMap: Record<string, boolean> = {};
-    commitHashes.forEach((h, i) => { headAncestorMap[h] = headAncestorResults[i]; });
+    // 一次有界探测替代 N 次 merge-base：`rev-list HEAD` 的输出集合即「HEAD 的祖先」全集。
+    // 探测带 --max-count 上限，避免大仓库把整条历史拉进内存。
+    let ancestorSet: Set<string> | null = null;
+    let probeFailed = false;
+    try {
+      const probe = await git.raw(['rev-list', `--max-count=${PROBE_MAX}`, 'HEAD']);
+      const hashes = probe.trim().split('\n').map(l => l.trim()).filter(Boolean);
+      if (hashes.length <= LARGE_REPO_COMMITS) ancestorSet = new Set(hashes);
+    } catch (_) {
+      probeFailed = true;   // 未出生 HEAD / 空仓库
+    }
+    if (ancestorSet) {
+      const set = ancestorSet;
+      commitHashes.forEach(h => { headAncestorMap[h] = set.has(h); });
+    } else if (probeFailed) {
+      commitHashes.forEach(h => { headAncestorMap[h] = false; });
+    } else {
+      // 大仓库：回退到逐提交判定（与原行为一致，但仅在超过阈值时才发生）
+      const results = await Promise.all(
+        commitHashes.map(async h => {
+          try { return (await git.raw(['merge-base', 'HEAD', h])).trim() === h; }
+          catch { return false; }
+        })
+      );
+      commitHashes.forEach((h, i) => { headAncestorMap[h] = results[i]; });
+    }
 
     // Determine which commits need push (local-only commits for the selected branch)
     let needsPushSet: Set<string> | null = null;
@@ -317,7 +362,17 @@ app.post('/api/commit-graph', async (req: Request, res: Response) => {
         (row.commit as any).needsPush = needsPushSet ? needsPushSet.has(row.commit.hash) : false;
       }
     }
-    res.json({ rows: finalRows, total, page, pageSize, headHash });
+    return { rows: finalRows, total, page, pageSize, headHash };
+}
+
+// 获取提交历史分支图
+app.post('/api/commit-graph', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, page = 1, pageSize = 50, branch } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '缺少参数' });
+    const key = `${path.resolve(dirPath)}|${branch || '--all'}|${page}|${pageSize}`;
+    const payload = await withSingleFlight(key, () => computeCommitGraph(dirPath, page, pageSize, branch));
+    res.json(payload);
   } catch (error: any) {
     console.error('获取提交图时出错:', error);
     res.status(500).json({ error: error.message });
