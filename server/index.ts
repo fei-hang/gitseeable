@@ -33,6 +33,16 @@ async function withSingleFlight<T>(key: string, task: () => Promise<T>): Promise
   return p;
 }
 
+// rebase 失败时若存在冲突文件，返回冲突响应（保留变基现场，交给前端冲突解决页），返回 true。
+async function trySendRebaseConflict(git: ReturnType<typeof getGit>, res: Response, e: any): Promise<boolean> {
+  try {
+    const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
+    const files = status.split('\n').filter(Boolean);
+    if (files.length > 0) { res.json({ conflict: true, files, type: 'rebase' }); return true; }
+  } catch (_) {}
+  return false;
+}
+
 // 检查目录是否为Git仓库并获取分支信息
 app.post('/api/check-git', async (req: Request, res: Response) => {
   try {
@@ -179,7 +189,16 @@ app.post('/api/checkout', async (req: Request, res: Response) => {
       const branches = await git.branchLocal();
       if (branches.all.includes(localName)) {
         await git.checkout(localName);
-        await git.pull();
+        try {
+          await git.raw(['pull', '--ff-only']);
+        } catch (_) {
+          try {
+            await git.raw(['pull', '--rebase']);
+          } catch (e) {
+            if (await trySendRebaseConflict(git, res, e)) return;
+            throw e;
+          }
+        }
       } else {
         await git.raw(['checkout', '--track', branch]);
       }
@@ -629,7 +648,8 @@ app.post('/api/fetch', async (req: Request, res: Response) => {
   }
 });
 
-// 拉取指定分支（git pull — 分离 fetch + merge，避免 FETCH_HEAD 歧义）
+// 拉取指定分支（git pull — 分离 fetch + merge/rebase，避免 FETCH_HEAD 歧义）
+// 与远程有分歧时默认 rebase（历史保持线性）；rebase 冲突时返回 conflict:true 复用现有冲突解决页。
 app.post('/api/pull-branch', async (req: Request, res: Response) => {
   try {
     const { dirPath, branch } = req.body;
@@ -640,9 +660,35 @@ app.post('/api/pull-branch', async (req: Request, res: Response) => {
     const currentBranch = (await git.branchLocal()).current;
     if (branch === currentBranch) {
       await git.raw(['fetch', 'origin', branch]);
-      await git.raw(['merge', '--ff-only', `origin/${branch}`]);
+      // 能 ff（HEAD 是 origin/branch 祖先）就维持原 merge --ff-only 行为；否则 rebase。
+      // 注意：不能靠 merge-base --is-ancestor 的退出码判断——simple-git 对「退出码非 0 且无 stderr」
+      // 的命令不会 reject（实测 RESOLVED），canFF 会恒为 true。改用 rev-list --count：HEAD 相对
+      // origin/branch 无领先提交（count==0）即 HEAD 是祖先，可 ff。
+      const aheadRaw = await git.raw(['rev-list', '--count', `origin/${branch}..HEAD`]).catch(() => null);
+      const canFF = aheadRaw !== null && parseInt(aheadRaw.trim(), 10) === 0;
+      if (canFF) {
+        await git.raw(['merge', '--ff-only', `origin/${branch}`]);
+      } else {
+        try {
+          await git.raw(['rebase', `origin/${branch}`]);
+        } catch (e) {
+          if (await trySendRebaseConflict(git, res, e)) return;
+          throw e;
+        }
+      }
     } else {
-      await git.raw(['fetch', 'origin', `${branch}:${branch}`]);
+      try {
+        await git.raw(['fetch', 'origin', `${branch}:${branch}`]);
+      } catch (_) {
+        // non-fast-forward：改写为 fetch + rebase，让该分支线性更新到远程之上。
+        await git.raw(['fetch', 'origin', branch]);
+        try {
+          await git.raw(['rebase', `origin/${branch}`, branch]);
+        } catch (e) {
+          if (await trySendRebaseConflict(git, res, e)) return;
+          throw e;
+        }
+      }
     }
     res.json({ ok: true });
   } catch (error: any) {
@@ -868,7 +914,10 @@ app.post('/api/continue-merge', async (req: Request, res: Response) => {
     } else if (isRevert) {
       await git.raw(['revert', '--continue']);
     } else {
-      await git.env('GIT_EDITOR', 'true').env('GIT_SEQUENCE_EDITOR', 'true').raw(['rebase', '--continue']);
+      // simple-git 3.33+ 默认把 GIT_EDITOR/core.editor/sequence.editor 视为 unsafe 并拦截，
+      // 需在实例上启用 allowUnsafeEditor；改用 -c 配置传编辑器，避免 env 变量黏在共享实例上。
+      const rebaseGit = simpleGit(dirPath, { unsafe: { allowUnsafeEditor: true } });
+      await rebaseGit.raw(['-c', 'core.editor=true', '-c', 'sequence.editor=true', 'rebase', '--continue']);
     }
     res.json({ ok: true });
   } catch (error: any) {

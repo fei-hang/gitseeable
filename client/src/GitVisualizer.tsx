@@ -373,7 +373,17 @@ function GitVisualizer() {
 
   const handleCheckoutBranch = async (branch: string) => {
     try {
-      await checkoutBranch(currentPath, branch);
+      const res = await checkoutBranch(currentPath, branch);
+      if (res.conflict) {
+        setConflictFiles(res.files);
+        setConflictType('rebase');
+        setConflictTheirsBranch(branch);
+        setActiveTab('conflicts');
+        // checkout 已成功，仍刷新信息
+        const data = await handleRefreshGitInfo();
+        setSelectedBranch(data.currentBranch);
+        return;
+      }
       const data = await handleRefreshGitInfo();
       setSelectedBranch(data.currentBranch);
     } catch (err: any) {
@@ -629,7 +639,14 @@ function GitVisualizer() {
     if (branch) {
       setFetchLoading(true);
       try {
-        await pullBranch(currentPath, branch);
+        const res = await pullBranch(currentPath, branch);
+        if (res.conflict) {
+          setConflictFiles(res.files);
+          setConflictType('rebase');
+          setConflictTheirsBranch(branch);
+          setActiveTab('conflicts');
+          return;
+        }
         await handleRefreshGitInfo();
         Swal.fire({ icon: 'success', title: i18n.t('dialog.fetch.success'), timer: 2000, showConfirmButton: false });
       } catch (err: any) {
