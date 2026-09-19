@@ -61,8 +61,8 @@ export function fetchAll(dirPath: string) {
   return axios.post(`${API_BASE_URL}/api/fetch`, { dirPath }).then(res => res.data);
 }
 
-export function pullBranch(dirPath: string, branch: string) {
-  return axios.post(`${API_BASE_URL}/api/pull-branch`, { dirPath, branch }).then(res => res.data);
+export function pullBranch(dirPath: string, branch: string, strategy?: 'rebase' | 'merge') {
+  return axios.post(`${API_BASE_URL}/api/pull-branch`, { dirPath, branch, strategy }).then(res => res.data);
 }
 
 export function compareBranches(dirPath: string, baseBranch: string, compareBranch: string) {

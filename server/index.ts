@@ -33,14 +33,20 @@ async function withSingleFlight<T>(key: string, task: () => Promise<T>): Promise
   return p;
 }
 
-// rebase 失败时若存在冲突文件，返回冲突响应（保留变基现场，交给前端冲突解决页），返回 true。
-async function trySendRebaseConflict(git: ReturnType<typeof getGit>, res: Response, e: any): Promise<boolean> {
+// 合并/变基失败时若存在冲突文件，返回冲突响应（保留现场，交给前端冲突解决页），返回 true。
+// type 决定前端 ConflictResolver 的展示与 /api/continue-merge 的收尾方式（merge → commit --no-edit）。
+async function trySendConflict(git: ReturnType<typeof getGit>, res: Response, e: any, type: 'merge' | 'rebase'): Promise<boolean> {
   try {
     const status = await git.raw(['diff', '--name-only', '--diff-filter=U']);
     const files = status.split('\n').filter(Boolean);
-    if (files.length > 0) { res.json({ conflict: true, files, type: 'rebase' }); return true; }
+    if (files.length > 0) { res.json({ conflict: true, files, type }); return true; }
   } catch (_) {}
   return false;
+}
+
+// 兼容旧调用点（rebase 专用）
+async function trySendRebaseConflict(git: ReturnType<typeof getGit>, res: Response, e: any): Promise<boolean> {
+  return trySendConflict(git, res, e, 'rebase');
 }
 
 // 检查目录是否为Git仓库并获取分支信息
@@ -649,18 +655,21 @@ app.post('/api/fetch', async (req: Request, res: Response) => {
 });
 
 // 拉取指定分支（git pull — 分离 fetch + merge/rebase，避免 FETCH_HEAD 歧义）
-// 与远程有分歧时默认 rebase（历史保持线性）；rebase 冲突时返回 conflict:true 复用现有冲突解决页。
+// 与远程有分歧时按 strategy 处理：rebase（默认，历史线性）或 merge（产生合并提交）。
+// 冲突时返回 conflict:true 复用现有冲突解决页；merge 冲突 type='merge'，rebase 冲突 type='rebase'。
 app.post('/api/pull-branch', async (req: Request, res: Response) => {
   try {
-    const { dirPath, branch } = req.body;
+    const { dirPath, branch, strategy } = req.body;
     if (!dirPath || !branch) {
       return res.status(400).json({ error: '缺少参数' });
     }
+    // 只接受两种策略，其余（含未传）一律回落 rebase，避免把任意字符串拼进 git 命令
+    const useMerge = strategy === 'merge';
     const git = getGit(dirPath);
     const currentBranch = (await git.branchLocal()).current;
     if (branch === currentBranch) {
       await git.raw(['fetch', 'origin', branch]);
-      // 能 ff（HEAD 是 origin/branch 祖先）就维持原 merge --ff-only 行为；否则 rebase。
+      // 能 ff（HEAD 是 origin/branch 祖先）就维持原 merge --ff-only 行为；否则按 strategy 处理。
       // 注意：不能靠 merge-base --is-ancestor 的退出码判断——simple-git 对「退出码非 0 且无 stderr」
       // 的命令不会 reject（实测 RESOLVED），canFF 会恒为 true。改用 rev-list --count：HEAD 相对
       // origin/branch 无领先提交（count==0）即 HEAD 是祖先，可 ff。
@@ -668,15 +677,31 @@ app.post('/api/pull-branch', async (req: Request, res: Response) => {
       const canFF = aheadRaw !== null && parseInt(aheadRaw.trim(), 10) === 0;
       if (canFF) {
         await git.raw(['merge', '--ff-only', `origin/${branch}`]);
+      } else if (useMerge) {
+        let mergeErr: any = null;
+        try {
+          // --no-edit 免编辑器；simple-git 3.33+ 会把 core.editor 视为 unsafe 并拦截，
+          // 需改用带 allowUnsafeEditor 的独立实例（与 /api/continue-merge 的 rebase 同款处理）
+          const mergeGit = simpleGit(dirPath, { unsafe: { allowUnsafeEditor: true } });
+          await mergeGit.raw(['-c', 'core.editor=true', 'merge', '--no-edit', `origin/${branch}`]);
+        } catch (e) {
+          mergeErr = e;
+        }
+        // ⚠️ 不能只靠抛错判断冲突：git merge 把 CONFLICT 信息写到 stdout，退出码非 0 而 stderr 为空，
+        // simple-git 对这种情况不会 reject。命令结束后必须主动查一次未合并文件。
+        if (await trySendConflict(git, res, mergeErr, 'merge')) return;
+        if (mergeErr) throw mergeErr;
       } else {
         try {
           await git.raw(['rebase', `origin/${branch}`]);
         } catch (e) {
-          if (await trySendRebaseConflict(git, res, e)) return;
+          if (await trySendConflict(git, res, e, 'rebase')) return;
           throw e;
         }
       }
     } else {
+      // 非当前分支：git merge 无法在不切换工作区的前提下作用于别的分支，
+      // 这里统一走 fetch + rebase（线性更新），strategy 不生效。
       try {
         await git.raw(['fetch', 'origin', `${branch}:${branch}`]);
       } catch (_) {
@@ -685,7 +710,7 @@ app.post('/api/pull-branch', async (req: Request, res: Response) => {
         try {
           await git.raw(['rebase', `origin/${branch}`, branch]);
         } catch (e) {
-          if (await trySendRebaseConflict(git, res, e)) return;
+          if (await trySendConflict(git, res, e, 'rebase')) return;
           throw e;
         }
       }
@@ -1533,7 +1558,7 @@ app.get('/api/last-path', (req: Request, res: Response) => {
 });
 
 // 保存 UI 状态（刷新保持）
-const UI_DEFAULTS = { activeTab: 'commits', sidebarWidth: 260, lang: 'zh' };
+const UI_DEFAULTS = { activeTab: 'commits', sidebarWidth: 260, lang: 'zh', pullStrategy: 'rebase' };
 
 app.get('/api/ui-state', (req: Request, res: Response) => {
   try {

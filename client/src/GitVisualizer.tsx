@@ -149,6 +149,8 @@ function GitVisualizer() {
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictTheirsBranch, setConflictTheirsBranch] = useState<string | null>(null);
   const [skipDropConfirm, setSkipDropConfirm] = useState(false);
+  // 拉取（与远程有分歧时）的默认策略：rebase（线性）或 merge（产生合并提交），持久化在 ui-state
+  const [pullStrategy, setPullStrategy] = useState<'rebase' | 'merge'>('rebase');
 
   // 同时存在于 staged 与 unstaged 的路径（AM / MM 这类）按用户要求只在「已暂存」侧展示
   const stagedPathSet = useMemo(
@@ -186,6 +188,7 @@ function GitVisualizer() {
       if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
       if (s.theme) setTheme(s.theme);
       if (s.skipDropConfirm) setSkipDropConfirm(true);
+      if (s.pullStrategy === 'merge' || s.pullStrategy === 'rebase') setPullStrategy(s.pullStrategy);
     }).catch(() => {});
   }, []);
 
@@ -200,6 +203,7 @@ function GitVisualizer() {
   useEffect(() => { queueSaveUiState({ sidebarWidth }); }, [sidebarWidth, queueSaveUiState]);
   useEffect(() => { queueSaveUiState({ theme }); }, [theme, queueSaveUiState]);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  // 拉取策略只在用户主动切换时落盘，避免挂载时的默认值覆盖已保存的选择
 
   const handleLoadDrives = async () => {
     try {
@@ -645,10 +649,10 @@ function GitVisualizer() {
     if (branch) {
       setFetchLoading(true);
       try {
-        const res = await pullBranch(currentPath, branch);
+        const res = await pullBranch(currentPath, branch, pullStrategy);
         if (res.conflict) {
           setConflictFiles(res.files);
-          setConflictType('rebase');
+          setConflictType(res.type === 'merge' ? 'merge' : 'rebase');
           setConflictTheirsBranch(branch);
           setActiveTab('conflicts');
           return;
@@ -1510,6 +1514,20 @@ function GitVisualizer() {
             )}
           </div>
           <button className="refresh-button" onClick={handleRefresh} title={t('analyze.refresh')}>{t('analyze.refresh')}</button>
+          <select
+            className="pull-strategy-select"
+            value={pullStrategy}
+            onChange={(e) => {
+              const next = e.target.value as 'rebase' | 'merge';
+              setPullStrategy(next);
+              queueSaveUiState({ pullStrategy: next });
+            }}
+            title={t('pull.strategyTip')}
+            aria-label={t('pull.strategy')}
+          >
+            <option value="rebase">{t('pull.rebase')}</option>
+            <option value="merge">{t('pull.merge')}</option>
+          </select>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
           <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
         </div>

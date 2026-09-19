@@ -87,6 +87,12 @@
     "ahead": "Can push ({{count}} commits)",
     "behind": "Can pull ({{count}} commits)"
   },
+  "pull": {
+    "strategy": "Pull strategy",
+    "strategyTip": "How to handle divergence from remote: rebase keeps linear history, merge creates a merge commit (applies to the current branch only)",
+    "rebase": "Pull · Rebase",
+    "merge": "Pull · Merge"
+  },
   "commit": {
     "loading": "Loading...",
     "empty": "No commits on this branch",
