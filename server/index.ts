@@ -1160,10 +1160,14 @@ app.post('/api/local-file-diff', async (req: Request, res: Response) => {
     }
 
     // 构造 diff 参数：full=true 放开上下文（-U1000000），否则默认 -U3
+    // staged         → HEAD vs 索引（git diff --cached）
+    // staged-latest  → HEAD vs 工作区（git diff HEAD），用于「已暂存后又被改过」的文件
+    // unstaged       → 索引 vs 工作区（git diff）
     const buildArgs = (full: boolean): string[] => {
       const args = ['diff', '--no-color'];
       if (full) args.push('-U1000000');
       if (type === 'staged') args.push('--cached');
+      else if (type === 'staged-latest') args.push('HEAD');
       args.push('--', filePath);
       return args;
     };

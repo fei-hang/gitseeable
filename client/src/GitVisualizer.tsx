@@ -159,6 +159,12 @@ function GitVisualizer() {
     () => (localStatus?.unstaged ?? []).filter(f => !stagedPathSet.has(f.path)),
     [localStatus, stagedPathSet]
   );
+  // 已暂存之后工作区又改过的路径（MM / AM 等）：仍只在「已暂存」区展示，
+  // 但预览要显示工作区最新内容，否则 add 之后的改动看不见
+  const stagedDirtySet = useMemo(() => {
+    const unstagedSet = new Set((localStatus?.unstaged ?? []).map(f => f.path));
+    return new Set((localStatus?.staged ?? []).filter(f => unstagedSet.has(f.path)).map(f => f.path));
+  }, [localStatus]);
 
   useEffect(() => {
     (async () => {
@@ -907,10 +913,13 @@ function GitVisualizer() {
     }
   };
 
-  const loadFileDiff = async (filePath: string, type: string) => {
+  const loadFileDiff = async (filePath: string, type: string, dirtySet?: Set<string>) => {
     setLocalFileDiffLoading(true);
     try {
-      const data = await fetchLocalFileDiff(currentPath, filePath, type);
+      // 已暂存且工作区又有新改动 → 用 staged-latest（HEAD vs 工作区）而非 --cached
+      const dirty = dirtySet ?? stagedDirtySet;
+      const diffType = type === 'staged' && dirty.has(filePath) ? 'staged-latest' : type;
+      const data = await fetchLocalFileDiff(currentPath, filePath, diffType);
       setLocalFileDiff(data.rows || []);
       setLocalFileDiffDegraded(!!data.degraded);
       setExpandedDiffRuns(new Set());
@@ -934,6 +943,12 @@ function GitVisualizer() {
       setSelectedStagedFiles(stagedSel);
       // 未暂存列表已在展示层按「排除已暂存路径」过滤；此处把选中态同步裁剪为只保留可见路径，
       // 避免 AM 文件的残留勾选被后续「暂存 / 回退 / 提交」误用
+      // 本次刷新刚拿到的集合（此时 stagedDirtySet 还没跟上，需显式传入）
+      const dirtySet = new Set<string>(
+        (data.staged || [])
+          .filter((f: LocalStatusEntry) => new Set((data.unstaged || []).map((u: LocalStatusEntry) => u.path)).has(f.path))
+          .map((f: LocalStatusEntry) => f.path)
+      );
       const stagedSet = new Set((data.staged || []).map(f => f.path));
       const visibleUnstaged = (data.unstaged || []).filter(f => !stagedSet.has(f.path));
       setSelectedUnstagedFiles(prev => {
@@ -944,7 +959,7 @@ function GitVisualizer() {
       if (data.staged.length > 0) {
         setSelectedLocalFile(data.staged[0].path);
         setSelectedLocalFileType('staged');
-        await loadFileDiff(data.staged[0].path, 'staged');
+        await loadFileDiff(data.staged[0].path, 'staged', dirtySet);
       } else if (visibleUnstaged.length > 0) {
         setSelectedLocalFile(visibleUnstaged[0].path);
         setSelectedLocalFileType('unstaged');
@@ -1748,6 +1763,9 @@ function GitVisualizer() {
                                 >
                                   <span className="file-item-status file-item-status--staged">{f.status === 'added' ? 'A' : f.status === 'deleted' ? 'D' : f.status === 'renamed' ? 'R' : 'M'}</span>
                                   <span className="file-item-path">{f.path}</span>
+                                  {stagedDirtySet.has(f.path) && (
+                                    <span className="file-item-badge" title={t('local.stagedDirtyTip')}>{t('local.stagedDirty')}</span>
+                                  )}
                                 </div>
                               </div>
                             ))
@@ -1811,6 +1829,9 @@ function GitVisualizer() {
                       <div className="local-diff-header">
                         <span className="local-diff-file">{selectedLocalFile}</span>
                         <span className="local-diff-type">{selectedLocalFileType === 'staged' ? t('local.stagedType') : t('local.unstagedType')}</span>
+                        {selectedLocalFileType === 'staged' && stagedDirtySet.has(selectedLocalFile) && (
+                          <span className="local-diff-type local-diff-type--latest">{t('local.stagedLatestType')}</span>
+                        )}
                         {localFileDiffDegraded && <span className="local-diff-notice">{t('local.degradedNotice')}</span>}
                       </div>
                       <div className="side-by-side-diff">

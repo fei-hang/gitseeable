@@ -1149,6 +1149,18 @@
   color: var(--text-primary);
 }
 
+/* 「已暂存后又被改过」的角标 */
+.file-item-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--warning-light);
+  color: var(--warning);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .local-status-loading {
   font-size: 13px;
   color: var(--text-tertiary);
@@ -1224,6 +1236,12 @@
   color: var(--primary);
   text-transform: uppercase;
   flex-shrink: 0;
+}
+
+.local-diff-type--latest {
+  background: var(--warning-light);
+  color: var(--warning);
+  text-transform: none;
 }
 
 /* Side-by-side diff */
