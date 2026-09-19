@@ -1,6 +1,6 @@
 {
   "name": "gitseeable",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Git repository visualizer — browse and analyze your repos in the browser",
   "main": "server/dist/index.js",
   "bin": {
