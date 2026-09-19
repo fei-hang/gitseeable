@@ -14,7 +14,7 @@ import {
   stageFiles, restoreFile, deleteFiles, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
   fetchConflictFiles, continueMerge,
-  cherryPickCommit, revertCommit, dropCommit, gitReset, pullBranch
+  cherryPickCommit, revertCommit, dropCommit, gitReset, pullBranch, scanRepos, ScannedRepo
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -151,6 +151,9 @@ function GitVisualizer() {
   const [skipDropConfirm, setSkipDropConfirm] = useState(false);
   // 拉取（与远程有分歧时）的默认策略：rebase（线性）或 merge（产生合并提交），持久化在 ui-state
   const [pullStrategy, setPullStrategy] = useState<'rebase' | 'merge'>('rebase');
+  // 在当前目录下递归扫到的 Git 仓库（含仓库自身），用于顶部下拉切换
+  const [scannedRepos, setScannedRepos] = useState<ScannedRepo[]>([]);
+  const [repoSwitching, setRepoSwitching] = useState(false);
 
   // 同时存在于 staged 与 unstaged 的路径（AM / MM 这类）按用户要求只在「已暂存」侧展示
   const stagedPathSet = useMemo(
@@ -253,25 +256,60 @@ function GitVisualizer() {
     if (e.key === 'Enter') handleGoPath();
   };
 
+  // 切换到某个仓库：刷新 gitInfo 并重置与仓库相关的视图状态
+  const handleOpenRepo = async (repoPath: string) => {
+    setRepoSwitching(true);
+    try {
+      const data = await checkGit(repoPath);
+      setGitInfo(data);
+      setError('');
+      if (!data.isGitRepo) {
+        setError(t('select.noRepoFound'));
+        return;
+      }
+      // 清掉上一个仓库的残留数据，避免串味
+      setGraphRows([]);
+      setCommitsTotal(0);
+      setCommitPage(1);
+      setLocalStatus(null);
+      setSelectedLocalFile(null);
+      setSelectedLocalFileType(null);
+      setLocalFileDiff([]);
+      setCompareData(null);
+      setConflictFiles(null);
+      setConflictType(null);
+      setFileDiff('');
+
+      saveLastPath(repoPath);
+      const url = new URL(window.location.href);
+      url.searchParams.set('dir', repoPath);
+      window.history.replaceState({}, '', url.toString());
+      const dirName = repoPath.split(/[/\\]/).filter(Boolean).pop();
+      document.title = `Git 仓库可视化工具 - ${dirName || repoPath}`;
+      setCurrentPath(repoPath);
+      setSelectedBranch(data.currentBranch);
+      setView('analyze');
+    } catch (err: any) {
+      setError(t('error.checkGit', { msg: err.response?.data?.error || err.message }));
+    } finally {
+      setRepoSwitching(false);
+    }
+  };
+
+  // 打开目录：先递归扫描仓库，默认进第一个
   const handleDoCheckGit = async (dirPath: string) => {
     try {
       setLoading(true);
-      const data = await checkGit(dirPath);
-      setGitInfo(data);
-      setError('');
-
-      if (data.isGitRepo) {
-        saveLastPath(dirPath);
-        const url = new URL(window.location.href);
-        url.searchParams.set('dir', dirPath);
-        window.history.replaceState({}, '', url.toString());
-        const dirName = dirPath.split(/[/\\]/).filter(Boolean).pop();
-        document.title = `Git 仓库可视化工具 - ${dirName || dirPath}`;
-        setSelectedBranch(data.currentBranch);
-        setView('analyze');
+      const scan = await scanRepos(dirPath);
+      setScannedRepos(scan.repos);
+      if (scan.repos.length === 0) {
+        setGitInfo({ isGitRepo: false, path: dirPath, message: 'not repo' } as any);
+        setError('');
+        return;
       }
+      await handleOpenRepo(scan.repos[0].path);
     } catch (err: any) {
-      setError(t('error.checkGit', { msg: err.response?.data?.error || err.message }));
+      setError(t('error.scanRepos', { msg: err.response?.data?.error || err.message }));
     } finally {
       setLoading(false);
     }
@@ -1439,7 +1477,8 @@ function GitVisualizer() {
     if (view === 'analyze' && activeTab === 'local') {
       handleLoadLocalStatus();
     }
-  }, [view, activeTab, selectedBranch]);
+    // currentPath 进依赖：切换仓库时（分支名可能相同）也要重新拉提交图 / 本地修改
+  }, [view, activeTab, selectedBranch, currentPath]);
 
   useEffect(() => {
     if (view === 'analyze' && currentPath && gitInfo) {
@@ -1502,6 +1541,23 @@ function GitVisualizer() {
       <div className="analyze-view" onContextMenu={(e) => e.preventDefault()}>
         <div className="analyze-header">
           <button onClick={handleReselect} className="reselect-button">{t('analyze.reselect')}</button>
+          {scannedRepos.length > 0 && (
+            <div className="repo-picker">
+              <select
+                className="repo-select"
+                value={currentPath}
+                disabled={repoSwitching}
+                onChange={(e) => { if (e.target.value !== currentPath) handleOpenRepo(e.target.value); }}
+                title={t('repo.switchTip')}
+                aria-label={t('repo.switch')}
+              >
+                {scannedRepos.map(r => (
+                  <option key={r.path} value={r.path}>{r.relPath && r.relPath !== '.' ? r.relPath : r.name}</option>
+                ))}
+              </select>
+              {repoSwitching && <span className="repo-switching">{t('repo.switching')}</span>}
+            </div>
+          )}
           <span className="analyze-path">{currentPath}</span>
           <div className="analyze-tabs">
             <button className={`analyze-tab${activeTab === 'commits' ? ' analyze-tab--active' : ''}`} onClick={() => setActiveTab('commits')}>{t('analyze.tabCommits')}</button>
@@ -1983,7 +2039,7 @@ function GitVisualizer() {
           disabled={loading || !currentPath}
           className="btn btn--primary btn--large"
         >
-          {loading ? t('select.checking') : t('select.checkGit')}
+          {loading ? t('select.scanning') : t('select.checkGit')}
         </button>
       </div>
 
@@ -1991,7 +2047,7 @@ function GitVisualizer() {
 
       {gitInfo && !gitInfo.isGitRepo && (
         <div className="not-repo-msg">
-          <p>{t('select.notRepo')}</p>
+          <p>{t('select.noRepoFound')}</p>
         </div>
       )}
 

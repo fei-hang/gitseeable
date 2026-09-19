@@ -13,6 +13,16 @@ export function checkGit(dirPath: string) {
   return axios.post(`${API_BASE_URL}/api/check-git`, { dirPath }).then(res => res.data);
 }
 
+export interface ScannedRepo {
+  path: string;
+  name: string;
+  relPath: string;
+}
+
+export function scanRepos(dirPath: string): Promise<{ repos: ScannedRepo[]; truncated: boolean; basePath: string }> {
+  return axios.post(`${API_BASE_URL}/api/scan-repos`, { dirPath }).then(res => res.data);
+}
+
 export function fetchCommits(dirPath: string, branch: string, page = 1, pageSize = COMMITS_PAGE_SIZE) {
   return axios.post(`${API_BASE_URL}/api/commits`, { dirPath, branch, page, pageSize }).then(res => res.data);
 }

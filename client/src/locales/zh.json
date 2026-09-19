@@ -21,9 +21,11 @@
     "currentPath": "当前路径:",
     "noPath": "(请选择盘符或输入路径)",
     "parentDir": "⬆ 上级目录",
-    "checking": "检查中...",
-    "checkGit": "检查是否为Git仓库",
+    "checking": "处理中...",
+    "checkGit": "打开目录",
+    "scanning": "扫描中...",
     "notRepo": "该目录不是 Git 仓库",
+    "noRepoFound": "该目录下没有找到 Git 仓库（最多递归 3 层）",
     "selectDrive": "选择盘符",
     "browser": "目录浏览器",
     "emptyDir": "该目录下没有子文件夹"
@@ -230,6 +232,12 @@
   "error": {
     "loadDrives": "加载盘符失败: {{msg}}",
     "loadDirectories": "加载目录失败: {{msg}}",
-    "checkGit": "检查Git仓库失败: {{msg}}"
+    "checkGit": "检查Git仓库失败: {{msg}}",
+    "scanRepos": "扫描Git仓库失败: {{msg}}"
+  },
+  "repo": {
+    "switch": "切换仓库",
+    "switchTip": "当前目录下扫描到的 Git 仓库（最多递归 3 层）",
+    "switching": "加载中…"
   }
 }

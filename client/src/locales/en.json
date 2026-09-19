@@ -21,9 +21,11 @@
     "currentPath": "Current Path:",
     "noPath": "(select a drive or enter a path)",
     "parentDir": "⬆ Parent Directory",
-    "checking": "Checking...",
-    "checkGit": "Check if Git Repository",
+    "checking": "Working...",
+    "checkGit": "Open Directory",
+    "scanning": "Scanning...",
     "notRepo": "This directory is not a Git repository",
+    "noRepoFound": "No Git repository found under this directory (max 3 levels deep)",
     "selectDrive": "Select Drive",
     "browser": "Directory Browser",
     "emptyDir": "No subdirectories in this path"
@@ -230,6 +232,12 @@
   "error": {
     "loadDrives": "Failed to load drives: {{msg}}",
     "loadDirectories": "Failed to load directories: {{msg}}",
-    "checkGit": "Failed to check Git repository: {{msg}}"
+    "checkGit": "Failed to check Git repository: {{msg}}",
+    "scanRepos": "Failed to scan Git repositories: {{msg}}"
+  },
+  "repo": {
+    "switch": "Switch repository",
+    "switchTip": "Git repositories found under this directory (max 3 levels deep)",
+    "switching": "Loading…"
   }
 }

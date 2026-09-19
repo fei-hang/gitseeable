@@ -181,6 +181,64 @@ app.post('/api/list-directory', (req: Request, res: Response) => {
   }
 });
 
+// 递归扫描目录下的 Git 仓库（性能优先：限深度、命中即停、跳过巨型目录、限制扫描量）
+app.post('/api/scan-repos', (req: Request, res: Response) => {
+  try {
+    const { dirPath } = req.body;
+    if (!dirPath) return res.status(400).json({ error: '请提供目录路径' });
+    if (!fs.existsSync(dirPath)) return res.status(400).json({ error: '目录不存在' });
+    const stat = fs.statSync(dirPath);
+    if (!stat.isDirectory()) return res.status(400).json({ error: '路径不是目录' });
+
+    const MAX_DEPTH = 3;      // 最多向下 3 层（dirPath 自身为第 0 层）
+    const MAX_DIRS = 2000;    // 扫描目录总数上限，防止超大目录卡死
+    const MAX_REPOS = 100;    // 返回仓库数上限
+    // 这些目录里几乎不可能有独立仓库，且体量巨大，直接跳过
+    const SKIP_DIRS = new Set([
+      'node_modules', '.git', '.svn', '.hg', 'vendor', 'dist', 'build', 'out', 'target',
+      '.next', '.nuxt', '.cache', '.idea', '.vscode', '__pycache__', 'coverage', '.gradle',
+      '.m2', 'bin', 'obj', 'packages', '.pnpm-store', 'venv', '.venv', 'env'
+    ]);
+
+    const repos: { path: string; name: string; relPath: string }[] = [];
+    let scanned = 0;
+    let truncated = false;
+
+    const walk = (dir: string, depth: number) => {
+      if (truncated) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (_) {
+        return; // 无权限 / 路径过长，跳过
+      }
+      // 命中即停：本身是仓库（.git 目录，或 worktree/子模块的 .git 文件）就不再往下钻
+      if (entries.some(e => e.name === '.git')) {
+        const rel = path.relative(dirPath, dir).replace(/\\/g, '/');
+        repos.push({ path: dir, name: path.basename(dir) || dir, relPath: rel || '.' });
+        if (repos.length >= MAX_REPOS) truncated = true;
+        return;
+      }
+      if (depth >= MAX_DEPTH) return;
+      for (const e of entries) {
+        if (truncated) return;
+        if (!e.isDirectory()) continue;
+        if (SKIP_DIRS.has(e.name)) continue;
+        scanned++;
+        if (scanned > MAX_DIRS) { truncated = true; return; }
+        walk(path.join(dir, e.name), depth + 1);
+      }
+    };
+
+    walk(dirPath, 0);
+    repos.sort((a, b) => a.relPath.localeCompare(b.relPath, 'zh'));
+    res.json({ repos, truncated, basePath: dirPath });
+  } catch (error: any) {
+    console.error('扫描仓库时出错:', error);
+    res.status(500).json({ error: '扫描仓库时出错: ' + error.message });
+  }
+});
+
 // 迁出指定分支
 app.post('/api/checkout', async (req: Request, res: Response) => {
   try {

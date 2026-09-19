@@ -98,6 +98,52 @@
   color: var(--text-primary);
 }
 
+/* 顶部仓库切换（扫描到的仓库列表） */
+.repo-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.repo-select {
+  max-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.repo-select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.repo-select:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.repo-switching {
+  font-size: 11px;
+  color: var(--primary);
+  white-space: nowrap;
+  animation: repoPulse 1s var(--ease-out) infinite;
+}
+
+@keyframes repoPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 .path-input-row {
   display: flex;
   gap: var(--space-2);
