@@ -538,6 +538,10 @@
   gap: 0;
   flex: 1;
   overflow-y: auto;
+  /* .commit-content 带 -8px 左右负外边距（hover 高亮出血），会把该轴撑出 8px 溢出。
+     overflow-y: auto 会把 overflow-x 一并提升为 auto，于是列表底部冒出一条横向滚动条，
+     而溢出的那 8px 只是内边距空白，所以看着「没有内容超出」。这里显式禁掉横向滚动。 */
+  overflow-x: hidden;
   min-height: 0;
 }
 
