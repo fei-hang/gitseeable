@@ -1232,6 +1232,13 @@ function GitVisualizer() {
     handleLoadLocalStatus();
   };
 
+  // 拉取策略只在用户主动切换时落盘，避免挂载时的默认值覆盖已保存的选择
+  const handleChoosePullStrategy = (next: 'rebase' | 'merge') => {
+    if (next === pullStrategy) return;
+    setPullStrategy(next);
+    queueSaveUiState({ pullStrategy: next });
+  };
+
   const handleSwitchLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(next);
@@ -1570,20 +1577,31 @@ function GitVisualizer() {
             )}
           </div>
           <button className="refresh-button" onClick={handleRefresh} title={t('analyze.refresh')}>{t('analyze.refresh')}</button>
-          <select
-            className="pull-strategy-select"
-            value={pullStrategy}
-            onChange={(e) => {
-              const next = e.target.value as 'rebase' | 'merge';
-              setPullStrategy(next);
-              queueSaveUiState({ pullStrategy: next });
-            }}
-            title={t('pull.strategyTip')}
+          <div
+            className="pull-strategy-switch"
+            data-strategy={pullStrategy}
+            role="group"
             aria-label={t('pull.strategy')}
+            title={t('pull.strategyTip')}
           >
-            <option value="rebase">{t('pull.rebase')}</option>
-            <option value="merge">{t('pull.merge')}</option>
-          </select>
+            <span className="pull-strategy-thumb" aria-hidden="true" />
+            <button
+              type="button"
+              className={`pull-strategy-option${pullStrategy === 'rebase' ? ' pull-strategy-option--active' : ''}`}
+              aria-pressed={pullStrategy === 'rebase'}
+              onClick={() => handleChoosePullStrategy('rebase')}
+            >
+              {t('pull.rebase')}
+            </button>
+            <button
+              type="button"
+              className={`pull-strategy-option${pullStrategy === 'merge' ? ' pull-strategy-option--active' : ''}`}
+              aria-pressed={pullStrategy === 'merge'}
+              onClick={() => handleChoosePullStrategy('merge')}
+            >
+              {t('pull.merge')}
+            </button>
+          </div>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
           <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
         </div>
