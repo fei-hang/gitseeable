@@ -1445,6 +1445,12 @@
   user-select: none;
 }
 
+/* 原始文件侧：行号在栏内右端（紧邻分隔条），与修改后侧的行号左右相邻，便于对比行号 */
+.diff-cell--old .diff-line-num {
+  padding-right: 4px;
+  padding-left: 8px;
+}
+
 .diff-line-content {
   flex: 1;
   white-space: pre;

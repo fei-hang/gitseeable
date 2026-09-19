@@ -1895,9 +1895,10 @@ function GitVisualizer() {
                                 return (
                                   <div key={item.key} className="diff-row">
                                     {row.oldContent !== null ? (
-                                      <div className={`diff-cell${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
-                                        <span className="diff-line-num">{row.oldLine}</span>
+                                      // 原始文件侧：行号放栏内右侧，与修改后侧的行号在分隔条两旁相邻
+                                      <div className={`diff-cell diff-cell--old${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
                                         <span className="diff-line-content">{row.oldContent}</span>
+                                        <span className="diff-line-num">{row.oldLine}</span>
                                       </div>
                                     ) : (
                                       <div className="diff-cell" />
