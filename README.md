@@ -9,13 +9,17 @@ A full-stack Git repository visualization tool built with React 19 + Vite 5 (fro
 
 ## Features
 
-- **Directory Browser** — Navigate local filesystem directories and select Git repositories
-- **Branch Management** — View local and remote branches, checkout, create, merge, rename, delete, push, fetch, and rebase
-- **Commit History** — Paginated commit log with author, date, and message display
-- **Branch Comparison** — Compare two branches to see ahead/behind commits
-- **Commit Diff** — View the full diff of any commit
+- **Directory Browser** — Navigate the local filesystem and pick a folder
+- **Repository Scan** — Recursively scan the selected folder (up to 3 levels deep) for Git repositories and switch between them from a dropdown
+- **Branch Management** — View local and remote branches; checkout, create, merge, rebase, rename, delete, push, fetch and compare
+- **Pull Strategy** — Choose **rebase** (default) or **merge** for the case where your branch has diverged from its remote
+- **Commit History** — Paginated commit log with author, date and message, plus a per-commit context menu (cherry-pick / revert / reset / drop)
+- **Branch Comparison** — Compare two branches to see ahead/behind commits and inspect the full diff of any commit
+- **Local Changes** — Staged / unstaged sections with batch stage, unstage and restore; side-by-side diff with full context, collapsible unchanged blocks and a draggable splitter; the preview always shows the latest worktree content
+- **Conflict Resolution** — Built-in side-by-side editor for merge / rebase / cherry-pick conflicts
+- **Themes** — Light and dark mode
 - **Internationalization** — Supports Chinese (default) and English
-- **Session Persistence** — Remembers the last browsed directory across sessions
+- **Session Persistence** — Remembers the last opened repository across sessions
 
 ## Screenshots
 
