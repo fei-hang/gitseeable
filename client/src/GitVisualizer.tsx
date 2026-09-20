@@ -14,7 +14,8 @@ import {
   stageFiles, restoreFile, deleteFiles, fetchUiState, saveUiState, fetchPendingCommits,
   unstageFiles,
   fetchConflictFiles, continueMerge,
-  cherryPickCommit, revertCommit, dropCommit, gitReset, pullBranch, scanRepos, ScannedRepo
+  cherryPickCommit, revertCommit, dropCommit, gitReset, pullBranch, scanRepos, ScannedRepo,
+  amendCommitMessage
 } from './api';
 import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
@@ -810,6 +811,12 @@ function GitVisualizer() {
     const actions: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] = [];
     actions.push({ label: t('context.cherryPick'), onClick: () => handleCherryPick(commit.hash), disabled: commit.isOnHeadBranch });
     actions.push({ label: t('context.revert'), onClick: () => handleRevertCommit(commit.hash) });
+    // 只支持当前分支上的非合并提交（改历史会重写该提交及其之后的所有提交）
+    actions.push({
+      label: t('context.editMessage'),
+      onClick: () => handleEditCommitMessage(commit),
+      disabled: !commit.isOnHeadBranch || commit.parents.includes(' ')
+    });
     actions.push({ label: t('context.reset'), onClick: () => handleResetCommit(commit.hash) });
     actions.push({ label: t('context.drop'), onClick: () => handleDropCommit(commit), danger: true, disabled: !commit.parents });
     setContextMenu({ x: e.clientX, y: e.clientY, items: actions });
@@ -878,6 +885,40 @@ function GitVisualizer() {
       await handleLoadGraph(1, commitPageSize, data.currentBranch);
     } catch (err: any) {
       Swal.fire({ icon: 'error', title: t('dialog.drop.fail'), text: err.response?.data?.error || err.message });
+    }
+  };
+
+  // 修改某条提交的 message：重写该提交及其之后的所有提交（hash 会变）
+  const handleEditCommitMessage = async (commit: GraphCommit) => {
+    const branch = selectedBranch || gitInfo?.currentBranch;
+    if (!branch) return;
+    const { value: message } = await Swal.fire({
+      title: t('dialog.editMessage.title'),
+      text: t('dialog.editMessage.hint'),
+      input: 'textarea',
+      inputValue: commit.message,
+      inputPlaceholder: i18n.t('dialog.editMessage.placeholder'),
+      showCancelButton: true,
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputValidator: (value: string) => (value && value.trim() ? null : i18n.t('dialog.editMessage.emptyError'))
+    });
+    if (!message || message.trim() === commit.message) return;
+    try {
+      const res = await amendCommitMessage(currentPath, commit.hash, message.trim(), branch);
+      if (res.conflict) {
+        setConflictFiles(res.files);
+        setConflictType('rebase');
+        setConflictTheirsBranch(branch);
+        setActiveTab('conflicts');
+        return;
+      }
+      Swal.fire({ icon: 'success', title: t('dialog.editMessage.success'), timer: 2000, showConfirmButton: false });
+      const data = await handleRefreshGitInfo();
+      setSelectedBranch(data.currentBranch);
+      await handleLoadGraph(1, commitPageSize, data.currentBranch);
+    } catch (err: any) {
+      Swal.fire({ icon: 'error', title: t('dialog.editMessage.fail'), text: err.response?.data?.error || err.message });
     }
   };
 

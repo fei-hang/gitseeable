@@ -75,6 +75,10 @@ export function pullBranch(dirPath: string, branch: string, strategy?: 'rebase' 
   return axios.post(`${API_BASE_URL}/api/pull-branch`, { dirPath, branch, strategy }).then(res => res.data);
 }
 
+export function amendCommitMessage(dirPath: string, commitHash: string, message: string, branch?: string) {
+  return axios.post(`${API_BASE_URL}/api/amend-commit-message`, { dirPath, commitHash, message, branch }).then(res => res.data);
+}
+
 export function compareBranches(dirPath: string, baseBranch: string, compareBranch: string) {
   return axios.post(`${API_BASE_URL}/api/compare-branches`, { dirPath, baseBranch, compareBranch }).then(res => res.data);
 }

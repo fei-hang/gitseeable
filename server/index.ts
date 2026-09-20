@@ -480,6 +480,62 @@ app.post('/api/create-branch', async (req: Request, res: Response) => {
   }
 });
 
+// 修改某条提交的 message（会重写该提交及其之后的提交）
+// 做法：分离 HEAD 到该提交 → commit --amend 出新提交 → 把后续提交 rebase --onto 到新提交上。
+app.post('/api/amend-commit-message', async (req: Request, res: Response) => {
+  try {
+    const { dirPath, commitHash, message, branch } = req.body;
+    if (!dirPath || !commitHash || !message) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    const git = getGit(dirPath);
+    const currentBranch = (await git.branchLocal()).current;
+    const target = branch || currentBranch;
+    if (!target) {
+      return res.status(400).json({ error: '当前不处于任何分支上' });
+    }
+
+    // 1) 工作区必须干净，否则 amend 会把未提交的改动一起塞进提交
+    const dirty = await git.raw(['status', '--porcelain', '-uno']);
+    if (dirty.trim()) {
+      return res.status(400).json({ error: '工作区有未提交的修改，请先提交或暂存后再修改提交信息' });
+    }
+
+    // 2) 该提交必须在目标分支上（不在的话 rebase --onto 会算错区间）
+    //    注意：不能用 merge-base --is-ancestor 的退出码判断——simple-git 对「非 0 退出码 + 空 stderr」不 reject
+    const notOnBranchRaw = await git.raw(['rev-list', '--count', `${target}..${commitHash}`]).catch(() => '1');
+    if (parseInt(notOnBranchRaw.trim(), 10) > 0) {
+      return res.status(400).json({ error: '该提交不在当前分支上，无法修改' });
+    }
+
+    // 3) 合并提交有 2 个父提交，amend 语义不稳定，暂不支持
+    const parentsRaw = await git.raw(['rev-list', '--parents', '-n', '1', commitHash]).catch(() => '');
+    const parents = parentsRaw.trim().split(/\s+/).slice(1).filter(Boolean);
+    if (parents.length > 1) {
+      return res.status(400).json({ error: '暂不支持修改合并提交的信息' });
+    }
+
+    // 4) 分离 HEAD → 生成新提交
+    await git.raw(['checkout', '--detach', commitHash]);
+    const amendGit = simpleGit(dirPath, { unsafe: { allowUnsafeEditor: true } });
+    await amendGit.raw(['-c', 'core.editor=true', 'commit', '--amend', '-m', message]);
+    const newHash = (await git.revparse(['HEAD'])).trim();
+
+    // 5) 把该提交之后的所有提交搬到新提交之上；冲突则保留现场交给前端冲突解决页
+    try {
+      await git.raw(['rebase', '--onto', newHash, commitHash, target]);
+    } catch (e) {
+      if (await trySendConflict(git, res, e, 'rebase')) return;
+      throw e;
+    }
+
+    res.json({ ok: true, newHash });
+  } catch (error: any) {
+    console.error('修改提交信息时出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 合并分支到当前分支
 app.post('/api/merge-branch', async (req: Request, res: Response) => {
   try {

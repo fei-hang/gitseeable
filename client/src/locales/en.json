@@ -128,6 +128,7 @@
     "cherryPick": "Cherry-pick",
     "revert": "Revert commit",
     "drop": "Delete commit",
+    "editMessage": "Edit commit message",
     "reset": "Reset to this commit"
   },
   "dialog": {
@@ -195,6 +196,14 @@
       "dontAskAgain": "Don't ask again",
       "success": "Commit deleted",
       "fail": "Failed to delete commit"
+    },
+    "editMessage": {
+      "title": "Edit Commit Message",
+      "hint": "This rewrites the commit and everything after it (hashes will change). If the branch was already pushed, you will need a force push afterwards.",
+      "placeholder": "Enter the new commit message",
+      "emptyError": "Commit message cannot be empty",
+      "success": "Commit message updated",
+      "fail": "Failed to update commit message"
     },
     "reset": {
       "title": "Git Reset",
