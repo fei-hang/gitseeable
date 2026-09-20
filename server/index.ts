@@ -498,7 +498,8 @@ app.post('/api/amend-commit-message', async (req: Request, res: Response) => {
     // 1) 工作区必须干净，否则 amend 会把未提交的改动一起塞进提交
     const dirty = await git.raw(['status', '--porcelain', '-uno']);
     if (dirty.trim()) {
-      return res.status(400).json({ error: '工作区有未提交的修改，请先提交或暂存后再修改提交信息' });
+      // 不能建议「暂存」：已暂存的改动会被 amend 静默写进提交（已实测）
+      return res.status(400).json({ error: '工作区有未提交的修改，请先提交或储藏（git stash）后再修改提交信息' });
     }
 
     // 2) 该提交必须在目标分支上（不在的话 rebase --onto 会算错区间）
