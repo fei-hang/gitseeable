@@ -1363,11 +1363,15 @@ function GitVisualizer() {
   const [diffSplitPct, setDiffSplitPct] = useState(0.5);
   const diffDragging = useRef(false);
   const diffBodyRef = useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 20;
-  const SCROLL_BUFFER = 20;
+  const ROW_HEIGHT = 20;            // 未测量时的默认行高（换行后真实高度以实测为准）
+  const SCROLL_BUFFER_PX = 600;     // 虚拟窗口在可视区上下各多渲染的像素高度
   const [diffScrollTop, setDiffScrollTop] = useState(0);
   const [diffContainerHeight, setDiffContainerHeight] = useState(600);
   const diffVirtualRef = useRef<HTMLDivElement>(null);
+  // 换行后每行高度不再固定：存实测行高（未测到的行回退 ROW_HEIGHT）。
+  // key 变了（换文件 / 拖分栏 / 容器尺寸变化导致重新换行）就整体作废重测。
+  const [diffRowHeights, setDiffRowHeights] = useState<{ key: string; heights: number[] }>({ key: '', heights: [] });
+  const diffLayoutKey = `${selectedLocalFile || ''}|${Math.round(diffSplitPct * 100)}|${Math.round(diffContainerHeight / 50)}`;
 
   const handleDiffScroll = useCallback(() => {
     if (diffVirtualRef.current) {
@@ -1418,13 +1422,61 @@ function GitVisualizer() {
     return result;
   }, [localFileDiff, expandedDiffRuns]);
 
+  // 各行顶部的累计偏移（前缀和），用实测行高计算
+  const diffOffsets = useMemo(() => {
+    const n = diffRenderRows.length;
+    const h = diffRowHeights.key === diffLayoutKey ? diffRowHeights.heights : [];
+    const offsets = new Array<number>(n + 1);
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      offsets[i] = acc;
+      acc += h[i] || ROW_HEIGHT;
+    }
+    offsets[n] = acc;
+    return { offsets, total: acc };
+  }, [diffRenderRows, diffRowHeights, diffLayoutKey]);
+
   const diffVirtualRows = useMemo(() => {
     const total = diffRenderRows.length;
-    const maxStart = Math.max(0, total - 1);
-    const startIdx = Math.min(maxStart, Math.max(0, Math.floor(diffScrollTop / ROW_HEIGHT) - SCROLL_BUFFER));
-    const endIdx = Math.min(total, Math.ceil((diffScrollTop + diffContainerHeight) / ROW_HEIGHT) + SCROLL_BUFFER);
-    return { startIdx, endIdx, total, offsetY: startIdx * ROW_HEIGHT, visible: diffRenderRows.slice(startIdx, Math.max(startIdx, endIdx)) };
-  }, [diffRenderRows, diffScrollTop, diffContainerHeight]);
+    if (total === 0) {
+      return { startIdx: 0, endIdx: 0, total: 0, totalHeight: 0, offsetY: 0, visible: [] as DiffRenderRow[] };
+    }
+    const { offsets, total: totalHeight } = diffOffsets;
+    const minTop = Math.max(0, diffScrollTop - SCROLL_BUFFER_PX);
+    let startIdx = 0;
+    for (let i = 0; i < total; i++) {
+      if (offsets[i + 1] > minTop) { startIdx = i; break; }
+    }
+    const maxBottom = diffScrollTop + diffContainerHeight + SCROLL_BUFFER_PX;
+    let endIdx = total;
+    for (let i = startIdx; i < total; i++) {
+      if (offsets[i] > maxBottom) { endIdx = i; break; }
+    }
+    return { startIdx, endIdx, total, totalHeight, offsetY: offsets[startIdx], visible: diffRenderRows.slice(startIdx, Math.max(startIdx, endIdx)) };
+  }, [diffRenderRows, diffOffsets, diffScrollTop, diffContainerHeight]);
+
+  // 渲染后实测可见行的真实高度（差异超过 0.5px 才更新，避免抖动）
+  useLayoutEffect(() => {
+    const el = diffVirtualRef.current;
+    if (!el) return;
+    const wrap = el.querySelector('[data-diff-rows]') as HTMLElement | null;
+    if (!wrap) return;
+    const children = Array.from(wrap.children) as HTMLElement[];
+    const base = diffVirtualRows.startIdx;
+    setDiffRowHeights(prev => {
+      const heights = prev.key === diffLayoutKey ? prev.heights.slice() : [];
+      let changed = false;
+      for (let i = 0; i < children.length; i++) {
+        const idx = base + i;
+        const h = children[i].getBoundingClientRect().height;
+        if (h > 0 && Math.abs((heights[idx] || 0) - h) > 0.5) {
+          heights[idx] = h;
+          changed = true;
+        }
+      }
+      return changed ? { key: diffLayoutKey, heights } : prev;
+    });
+  }, [diffVirtualRows, diffContainerHeight, diffLayoutKey]);
 
   // 折叠/展开导致渲染行数变化后，若当前 scrollTop 超出新高度，浏览器会将其钳制；
   // 这里在绘制前把真实 scrollTop 同步回 state，避免虚拟窗口定位到容器外造成整片空白。
@@ -1974,8 +2026,8 @@ function GitVisualizer() {
                         </div>
                         <div className="side-by-side-body" ref={(el) => { (diffBodyRef as React.MutableRefObject<HTMLDivElement | null>).current = el; (diffVirtualRef as React.MutableRefObject<HTMLDivElement | null>).current = el; }} style={{ '--left-pct': `${diffSplitPct * 100}%` } as React.CSSProperties} onScroll={handleDiffScroll}>
                           <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
-                          <div style={{ height: diffVirtualRows.total * ROW_HEIGHT, position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
+                          <div style={{ height: diffVirtualRows.totalHeight, position: 'relative' }}>
+                            <div data-diff-rows="" style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
                               {diffVirtualRows.visible.map((item) => {
                                 if (item.kind === 'collapsed') {
                                   return (

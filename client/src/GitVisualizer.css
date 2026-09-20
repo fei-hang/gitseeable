@@ -1394,6 +1394,10 @@
   font-size: 11px;
   line-height: 1.5;
   overflow: auto;
+  /* 换行后行高由实测决定：若滚动条出现/消失导致栏宽变化 → 重新换行 → 行高变化 → 滚动条再变，
+     会来回抖动。预留滚动条位置可切断这个循环；横向禁滚防止长行再溢出。 */
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
   flex: 1;
   min-height: 0;
   position: relative;
@@ -1546,7 +1550,14 @@
 
 .diff-line-content {
   flex: 1;
-  white-space: pre;
+  /* min-width: 0 是关键：否则 white-space 造成的 min-content 会让内容撑破单元格，
+     溢出后盖住相邻栏（长行溢出到修改后文件一侧）。 */
+  min-width: 0;
+  /* pre-wrap：保留原始缩进与连续空格，但过长时换行，不再横向溢出 */
+  white-space: pre-wrap;
+  /* 超长且无空格的内容（URL、压缩后的长串）也能断开 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--text-primary);
 }
 
