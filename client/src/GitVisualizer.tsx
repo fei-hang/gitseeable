@@ -1436,12 +1436,29 @@ function GitVisualizer() {
     while (i < rows.length) {
       const r = rows[i];
       // 「删掉一行 + 紧跟着新增一行」= 改了这一行：合并成一条渲染行，左旧右新
+      // 注意 git 对「连续多行都改了」的输出是「先整段删除，再整段新增」，
+      // 所以要先把整段删除收齐、再收整段新增，按下标一一对齐（标准分栏 diff 的做法），
+      // 不能只看「紧邻的删+增」——否则 password 会错配到 url 上。
       const isDelOnly = r.oldType === 'remove' && r.newContent === null;
-      const next = rows[i + 1];
-      const isAddOnly = !!next && next.oldContent === null && next.newType === 'add';
-      if (isDelOnly && isAddOnly) {
-        result.push({ kind: 'modify', row: r, newRow: next, key: `m-${i}` });
-        i += 2;
+      if (isDelOnly) {
+        let j = i;
+        while (j < rows.length && rows[j].oldType === 'remove' && rows[j].newContent === null) j++;
+        const dels = rows.slice(i, j);
+        let k = j;
+        while (k < rows.length && rows[k].oldContent === null && rows[k].newType === 'add') k++;
+        const adds = rows.slice(j, k);
+        const pairCount = Math.min(dels.length, adds.length);
+        for (let t = 0; t < pairCount; t++) {
+          result.push({ kind: 'modify', row: dels[t], newRow: adds[t], key: `m-${i + t}` });
+        }
+        // 数量对不上时，多出来的删除 / 新增各占一行
+        for (let t = pairCount; t < dels.length; t++) {
+          result.push({ kind: 'line', row: dels[t], key: `l-${i + t}` });
+        }
+        for (let t = pairCount; t < adds.length; t++) {
+          result.push({ kind: 'line', row: adds[t], key: `l-${j + t}` });
+        }
+        i = k;
         continue;
       }
       if (r.oldType === 'normal' && r.newType === 'normal') {
