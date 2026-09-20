@@ -69,8 +69,48 @@ interface DiffRow {
 // 本地修改差异视图的“渲染行”：普通行直接渲染，折叠/收起行横跨左右两侧
 type DiffRenderRow =
   | { kind: 'line'; row: DiffRow; key: string }
+  // 「改了一行」：删掉的原行 + 新增的新行合并成同一条，左旧右新
+  | { kind: 'modify'; row: DiffRow; newRow: DiffRow; key: string }
   | { kind: 'collapsed'; startIdx: number; count: number; key: string }
   | { kind: 'toggle'; startIdx: number; count: number; key: string };
+
+/** 把一行切成 token：连续字母数字 / 连续空白 / 单个字符（中文按字切） */
+function tokenizeLine(line: string): string[] {
+  return line.match(/[A-Za-z0-9_]+|\s+|[\s\S]/g) || [];
+}
+
+/** 行内差异：用 LCS 找出两段文本各自“变化了”的 token，便于只高亮真正改动的部分 */
+function diffLineTokens(oldLine: string, newLine: string) {
+  const a = tokenizeLine(oldLine);
+  const b = tokenizeLine(newLine);
+  const n = a.length;
+  const m = b.length;
+  // 超长行不做行内 diff（O(n*m) 会卡），整行按普通改动处理
+  if (n * m > 20000) return null;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const oldChanged = new Array<boolean>(n).fill(true);
+  const newChanged = new Array<boolean>(m).fill(true);
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      oldChanged[i] = false;
+      newChanged[j] = false;
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return { a, b, oldChanged, newChanged };
+}
 
 interface CompareData {
   compareBranch: string;
@@ -1395,6 +1435,15 @@ function GitVisualizer() {
     let i = 0;
     while (i < rows.length) {
       const r = rows[i];
+      // 「删掉一行 + 紧跟着新增一行」= 改了这一行：合并成一条渲染行，左旧右新
+      const isDelOnly = r.oldType === 'remove' && r.newContent === null;
+      const next = rows[i + 1];
+      const isAddOnly = !!next && next.oldContent === null && next.newType === 'add';
+      if (isDelOnly && isAddOnly) {
+        result.push({ kind: 'modify', row: r, newRow: next, key: `m-${i}` });
+        i += 2;
+        continue;
+      }
       if (r.oldType === 'normal' && r.newType === 'normal') {
         let j = i;
         while (j < rows.length && rows[j].oldType === 'normal' && rows[j].newType === 'normal') j++;
@@ -2055,6 +2104,36 @@ function GitVisualizer() {
                                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDiffRun(item.startIdx); } }}
                                     >
                                       <span className="diff-toggle-label">{t('local.collapseLines', { count: item.count })}</span>
+                                    </div>
+                                  );
+                                }
+                                // 「改了一行」：左旧右新同一行显示，并高亮真正变动的部分
+                                if (item.kind === 'modify') {
+                                  const oldText = item.row.oldContent || '';
+                                  const newText = item.newRow.newContent || '';
+                                  const tk = diffLineTokens(oldText, newText);
+                                  return (
+                                    <div key={item.key} className="diff-row diff-row--modify">
+                                      <div className="diff-cell diff-cell--old diff-cell--remove">
+                                        <span className="diff-line-content">
+                                          {tk
+                                            ? tk.a.map((tok, k) => (tk.oldChanged[k]
+                                              ? <span key={k} className="diff-word diff-word--del">{tok}</span>
+                                              : <span key={k}>{tok}</span>))
+                                            : oldText}
+                                        </span>
+                                        <span className="diff-line-num">{item.row.oldLine}</span>
+                                      </div>
+                                      <div className="diff-cell diff-cell--add">
+                                        <span className="diff-line-num">{item.newRow.newLine}</span>
+                                        <span className="diff-line-content">
+                                          {tk
+                                            ? tk.b.map((tok, k) => (tk.newChanged[k]
+                                              ? <span key={k} className="diff-word diff-word--add">{tok}</span>
+                                              : <span key={k}>{tok}</span>))
+                                            : newText}
+                                        </span>
+                                      </div>
                                     </div>
                                   );
                                 }

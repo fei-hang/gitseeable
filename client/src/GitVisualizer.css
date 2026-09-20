@@ -1454,6 +1454,19 @@
   background: var(--success-light);
 }
 
+/* 改行（左旧右新合成一行）里的行内高亮：标出真正变动的那几个词/字 */
+.diff-word {
+  border-radius: 2px;
+}
+
+.diff-word--del {
+  background: var(--diff-mark-del);
+}
+
+.diff-word--add {
+  background: var(--diff-mark-add);
+}
+
 .diff-row--collapsed {
   display: block;              /* 覆盖 .diff-row 的 flex */
   position: relative;
