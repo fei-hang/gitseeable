@@ -1267,6 +1267,13 @@ function GitVisualizer() {
     [localStatus, unstagedVisible]
   );
 
+  // 选中文件时左侧列表跟随滚动，保证选中项始终可见（键盘切换时尤其需要）
+  useEffect(() => {
+    if (view !== 'analyze' || activeTab !== 'local' || !selectedLocalFile) return;
+    const el = document.querySelector('.file-item--selected');
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [view, activeTab, selectedLocalFile, selectedLocalFileType]);
+
   // ↑ / ↓ 切换上一个 / 下一个文件，并展示其差异上下文
   useEffect(() => {
     if (view !== 'analyze' || activeTab !== 'local') return;
