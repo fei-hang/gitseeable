@@ -1258,6 +1258,43 @@ function GitVisualizer() {
     await loadFileDiff(filePath, type);
   };
 
+  // 本地修改页可见文件顺序：已暂存在前，未暂存在后（与列表展示一致）
+  const localFileList = useMemo(
+    () => [
+      ...(localStatus?.staged ?? []).map(f => ({ path: f.path, type: 'staged' as const })),
+      ...unstagedVisible.map(f => ({ path: f.path, type: 'unstaged' as const })),
+    ],
+    [localStatus, unstagedVisible]
+  );
+
+  // ↑ / ↓ 切换上一个 / 下一个文件，并展示其差异上下文
+  useEffect(() => {
+    if (view !== 'analyze' || activeTab !== 'local') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const target = e.target as HTMLElement | null;
+      // 输入框内不劫持方向键
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (localFileList.length === 0) return;
+      e.preventDefault();
+      const idx = localFileList.findIndex(f => f.path === selectedLocalFile && f.type === selectedLocalFileType);
+      let nextIdx: number;
+      if (idx < 0) {
+        nextIdx = e.key === 'ArrowDown' ? 0 : localFileList.length - 1;
+      } else if (e.key === 'ArrowDown') {
+        nextIdx = Math.min(localFileList.length - 1, idx + 1);
+      } else {
+        nextIdx = Math.max(0, idx - 1);
+      }
+      const next = localFileList[nextIdx];
+      if (next && (next.path !== selectedLocalFile || next.type !== selectedLocalFileType)) {
+        void handleSelectLocalFile(next.path, next.type);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [view, activeTab, localFileList, selectedLocalFile, selectedLocalFileType, handleSelectLocalFile]);
+
   const handleToggleStagedFile = (path: string) => {
     setSelectedStagedFiles(prev => ({ ...prev, [path]: !prev[path] }));
   };

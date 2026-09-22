@@ -6,6 +6,7 @@
 - **Side-by-side diff**: Virtual scroll (ROW_HEIGHT = 20px, ±20 buffer) for performance. Draggable split pane divider between original/modified columns.
 - **Commit file diff context expand**: Per-file diff in commit history shows side-by-side with body labels (original/modified). Unchanged runs ≥4 collapse into an expand button; click expands diff context. Large files degrade to changed hunks only.
 - **Diff enlarge to full view**: On local changes page, a button sits between Original/Modified labels (on the split). Click enlarges the side-by-side comparison to the entire screen; click again or ESC restores.
+- **Local file keyboard nav**: On local changes page, ArrowDown/ArrowUp select next/previous file and load its diff (staged first, then unstaged). Skips when focus is in an input/textarea.
 - **Commit list pagination**: Page size selector (10/20/50/100/200), go-to-page input with Enter support. `POST /api/commits` supports `pageSize <= 0` for no limit.
 - **Merge & rebase**: `POST /api/merge-branch` and `POST /api/rebase-branch` (two-arg form). Post-operation graph reloads.
 - **Remote branch checkout**: Branches with `/` auto-create local tracking branch (`--track`).
