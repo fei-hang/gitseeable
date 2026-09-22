@@ -54,6 +54,8 @@
     "stagedLatestType": "incl. latest worktree changes",
     "original": "Original",
     "modified": "Modified",
+    "enlarge": "Enlarge comparison to full view",
+    "exitEnlarge": "Exit full-view comparison",
     "unchangedLines": "{{count}} unchanged lines, click to expand",
     "collapseLines": "Collapse {{count}} unchanged lines",
     "degradedNotice": "Large file: showing changed hunks only",

@@ -1553,6 +1553,7 @@ function GitVisualizer() {
   }, [localSidebarWidth]);
 
   const [diffSplitPct, setDiffSplitPct] = useState(0.5);
+  const [diffEnlarged, setDiffEnlarged] = useState(false);
   const diffDragging = useRef(false);
   const diffBodyRef = useRef<HTMLDivElement>(null);
   const ROW_HEIGHT = 20;            // 未测量时的默认行高（换行后真实高度以实测为准）
@@ -1652,6 +1653,25 @@ function GitVisualizer() {
     setDiffScrollTop(0);
     if (diffVirtualRef.current) diffVirtualRef.current.scrollTop = 0;
   }, [selectedLocalFile]);
+
+  // 放大全屏时按 ESC 退出
+  useEffect(() => {
+    if (!diffEnlarged) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDiffEnlarged(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [diffEnlarged]);
+
+  // 退出本地修改页时收起放大态
+  useEffect(() => {
+    if (activeTab !== 'local') setDiffEnlarged(false);
+  }, [activeTab]);
 
   useEffect(() => {
     const el = diffVirtualRef.current;
@@ -2210,10 +2230,20 @@ function GitVisualizer() {
                         )}
                         {localFileDiffDegraded && <span className="local-diff-notice">{t('local.degradedNotice')}</span>}
                       </div>
-                      <div className="side-by-side-diff">
+                      <div className={`side-by-side-diff${diffEnlarged ? ' side-by-side-diff--enlarged' : ''}`}>
                         <div className="side-by-side-header">
                           <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>
+                          <button
+                            type="button"
+                            className="diff-enlarge-btn"
+                            title={diffEnlarged ? t('local.exitEnlarge') : t('local.enlarge')}
+                            aria-label={diffEnlarged ? t('local.exitEnlarge') : t('local.enlarge')}
+                            onClick={() => setDiffEnlarged(v => !v)}
+                            style={{ left: `${diffSplitPct * 100}%` }}
+                          >
+                            {diffEnlarged ? '⤡' : '⤢'}
+                          </button>
                         </div>
                         {/* 手柄放在 body 外面：body 是滚动容器，绝对定位元素会跟着内容滚走，
                             放进这层不滚动的 viewport 才能保证滚动后依然可拖拽 */}

@@ -54,6 +54,8 @@
     "stagedLatestType": "含工作区最新改动",
     "original": "原始文件",
     "modified": "修改后的文件",
+    "enlarge": "将对比结果放大到整个画面",
+    "exitEnlarge": "退出全屏对比",
     "unchangedLines": "{{count}} 行未修改，点击展开",
     "collapseLines": "收起 {{count}} 行未修改内容",
     "degradedNotice": "文件过大，仅显示改动区域",
