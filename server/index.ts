@@ -1110,7 +1110,7 @@ app.post('/api/commit-files', async (req: Request, res: Response) => {
   }
 });
 
-// 获取某次 commit 中某个文件的 diff
+// 获取某次 commit 中某个文件的 diff（含上下文行，便于前端折叠/展开）
 app.post('/api/commit-file-diff', async (req: Request, res: Response) => {
   try {
     const { dirPath, commitHash, filePath } = req.body;
@@ -1118,13 +1118,20 @@ app.post('/api/commit-file-diff', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '缺少参数' });
     }
     const git = getGit(dirPath);
-    const raw = await git.raw(['show', commitHash, '--', filePath, '--no-color']);
-    const diffLines = raw.split('\n').filter(line =>
-      (line.startsWith('+') || line.startsWith('-')) &&
-      !line.startsWith('--- ') && !line.startsWith('+++ ')
-    );
-    const diff = diffLines.join('\n');
-    res.json({ commitHash, filePath, diff });
+    const MAX_ROWS = 5000;
+    const buildArgs = (full: boolean): string[] => {
+      const args = ['show', commitHash, '--no-color'];
+      if (full) args.push('-U1000000');
+      args.push('--', filePath);
+      return args;
+    };
+    let degraded = false;
+    let rows = parseDiff(await git.raw(buildArgs(true)));
+    if (rows.length > MAX_ROWS) {
+      rows = parseDiff(await git.raw(buildArgs(false)));
+      degraded = true;
+    }
+    res.json({ commitHash, filePath, rows, degraded });
   } catch (error: any) {
     console.error('获取文件diff时出错:', error);
     res.status(500).json({ error: error.message });

@@ -74,6 +74,154 @@ type DiffRenderRow =
   | { kind: 'collapsed'; startIdx: number; count: number; key: string }
   | { kind: 'toggle'; startIdx: number; count: number; key: string };
 
+/** 渲染一条 DiffRenderRow（含上下文折叠/展开按钮与行内高亮） */
+function renderDiffRowItem(
+  item: DiffRenderRow,
+  onToggle: (startIdx: number) => void,
+  t: (key: string, opts?: Record<string, unknown>) => string
+) {
+  if (item.kind === 'collapsed') {
+    return (
+      <div
+        key={item.key}
+        className="diff-row diff-row--collapsed"
+        role="button"
+        tabIndex={0}
+        onClick={() => onToggle(item.startIdx)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(item.startIdx); } }}
+      >
+        <div className="diff-wave" aria-hidden="true" />
+        <span className="diff-collapse-label">{t('local.unchangedLines', { count: item.count })}</span>
+      </div>
+    );
+  }
+  if (item.kind === 'toggle') {
+    return (
+      <div
+        key={item.key}
+        className="diff-row diff-row--toggle"
+        role="button"
+        tabIndex={0}
+        onClick={() => onToggle(item.startIdx)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(item.startIdx); } }}
+      >
+        <span className="diff-toggle-label">{t('local.collapseLines', { count: item.count })}</span>
+      </div>
+    );
+  }
+  // 「改了一行」：左旧右新同一行显示，并高亮真正变动的部分
+  if (item.kind === 'modify') {
+    const oldText = item.row.oldContent || '';
+    const newText = item.newRow.newContent || '';
+    const tk = diffLineTokens(oldText, newText);
+    return (
+      <div key={item.key} className="diff-row diff-row--modify">
+        <div className="diff-cell diff-cell--old diff-cell--remove">
+          <span className="diff-line-content">
+            {tk
+              ? tk.a.map((tok, k) => (tk.oldChanged[k]
+                ? <span key={k} className="diff-word diff-word--del">{tok}</span>
+                : <span key={k}>{tok}</span>))
+              : oldText}
+          </span>
+          <span className="diff-line-num">{item.row.oldLine}</span>
+        </div>
+        <div className="diff-cell diff-cell--new diff-cell--add">
+          <span className="diff-line-num">{item.newRow.newLine}</span>
+          <span className="diff-line-content">
+            {tk
+              ? tk.b.map((tok, k) => (tk.newChanged[k]
+                ? <span key={k} className="diff-word diff-word--add">{tok}</span>
+                : <span key={k}>{tok}</span>))
+              : newText}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  const row = item.row;
+  return (
+    <div key={item.key} className="diff-row">
+      {row.oldContent !== null ? (
+        // 原始文件侧：行号放栏内右侧，与修改后侧的行号在分隔条两旁相邻
+        <div className={`diff-cell diff-cell--old${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
+          <span className="diff-line-content">{row.oldContent}</span>
+          <span className="diff-line-num">{row.oldLine}</span>
+        </div>
+      ) : (
+        <div className="diff-cell" />
+      )}
+      {row.newContent !== null ? (
+        <div className={`diff-cell diff-cell--new${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
+          <span className="diff-line-num">{row.newLine}</span>
+          <span className="diff-line-content">{row.newContent}</span>
+        </div>
+      ) : (
+        <div className="diff-cell" />
+      )}
+    </div>
+  );
+}
+
+/** 把 DiffRow[] 映射成渲染行：连续 ≥4 行未修改内容压成一条折叠行（除非已展开） */
+function buildDiffRenderRows(rows: DiffRow[], expandedRuns: Set<number>): DiffRenderRow[] {
+  const result: DiffRenderRow[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const r = rows[i];
+    // 「删掉一行 + 紧跟着新增一行」= 改了这一行：合并成一条渲染行，左旧右新
+    // 注意 git 对「连续多行都改了」的输出是「先整段删除，再整段新增」，
+    // 所以要先把整段删除收齐、再收整段新增，按下标一一对齐（标准分栏 diff 的做法），
+    // 不能只看「紧邻的删+增」——否则 password 会错配到 url 上。
+    const isDelOnly = r.oldType === 'remove' && r.newContent === null;
+    if (isDelOnly) {
+      let j = i;
+      while (j < rows.length && rows[j].oldType === 'remove' && rows[j].newContent === null) j++;
+      const dels = rows.slice(i, j);
+      let k = j;
+      while (k < rows.length && rows[k].oldContent === null && rows[k].newType === 'add') k++;
+      const adds = rows.slice(j, k);
+      const pairCount = Math.min(dels.length, adds.length);
+      for (let t = 0; t < pairCount; t++) {
+        result.push({ kind: 'modify', row: dels[t], newRow: adds[t], key: `m-${i + t}` });
+      }
+      // 数量对不上时，多出来的删除 / 新增各占一行
+      for (let t = pairCount; t < dels.length; t++) {
+        result.push({ kind: 'line', row: dels[t], key: `l-${i + t}` });
+      }
+      for (let t = pairCount; t < adds.length; t++) {
+        result.push({ kind: 'line', row: adds[t], key: `l-${j + t}` });
+      }
+      i = k;
+      continue;
+    }
+    if (r.oldType === 'normal' && r.newType === 'normal') {
+      let j = i;
+      while (j < rows.length && rows[j].oldType === 'normal' && rows[j].newType === 'normal') j++;
+      const count = j - i;
+      if (count >= 4) {
+        if (expandedRuns.has(i)) {
+          result.push({ kind: 'toggle', startIdx: i, count, key: `t-${i}` });
+          for (let k = i; k < j; k++) {
+            result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
+          }
+        } else {
+          result.push({ kind: 'collapsed', startIdx: i, count, key: `c-${i}` });
+        }
+      } else {
+        for (let k = i; k < j; k++) {
+          result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
+        }
+      }
+      i = j;
+    } else {
+      result.push({ kind: 'line', row: r, key: `l-${i}` });
+      i++;
+    }
+  }
+  return result;
+}
+
 /** 把一行切成 token：连续字母数字 / 连续空白 / 单个字符（中文按字切） */
 function tokenizeLine(line: string): string[] {
   return line.match(/[A-Za-z0-9_]+|\s+|[\s\S]/g) || [];
@@ -168,7 +316,9 @@ function GitVisualizer() {
   const [commitFiles, setCommitFiles] = useState<CommitFileEntry[] | null>(null);
   const [commitFilesLoading, setCommitFilesLoading] = useState(false);
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
-  const [fileDiff, setFileDiff] = useState('');
+  const [fileDiffRows, setFileDiffRows] = useState<DiffRow[]>([]);
+  const [fileDiffExpandedRuns, setFileDiffExpandedRuns] = useState<Set<number>>(new Set());
+  const [fileDiffDegraded, setFileDiffDegraded] = useState(false);
   const [fileDiffLoading, setFileDiffLoading] = useState(false);
   const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null);
   const [localStatusLoading, setLocalStatusLoading] = useState(false);
@@ -319,7 +469,9 @@ function GitVisualizer() {
       setCompareData(null);
       setConflictFiles(null);
       setConflictType(null);
-      setFileDiff('');
+      setFileDiffRows([]);
+      setFileDiffExpandedRuns(new Set());
+      setFileDiffDegraded(false);
 
       saveLastPath(repoPath);
       const url = new URL(window.location.href);
@@ -1407,6 +1559,7 @@ function GitVisualizer() {
   const SCROLL_BUFFER_PX = 600;     // 虚拟窗口在可视区上下各多渲染的像素高度
   const [diffScrollTop, setDiffScrollTop] = useState(0);
   const [diffContainerHeight, setDiffContainerHeight] = useState(600);
+  const [diffBodyWidth, setDiffBodyWidth] = useState(0);   // body 内容宽度（不含滚动条），用于精确定位拖拽手柄
   const diffVirtualRef = useRef<HTMLDivElement>(null);
   // 换行后每行高度不再固定：存实测行高（未测到的行回退 ROW_HEIGHT）。
   // key 变了（换文件 / 拖分栏 / 容器尺寸变化导致重新换行）就整体作废重测。
@@ -1429,64 +1582,8 @@ function GitVisualizer() {
   }, []);
 
   // 把 DiffRow[] 映射成渲染行：连续 ≥4 行未修改内容压成一条折叠行（除非已展开）
-  const diffRenderRows = useMemo<DiffRenderRow[]>(() => {
-    const result: DiffRenderRow[] = [];
-    const rows = localFileDiff;
-    let i = 0;
-    while (i < rows.length) {
-      const r = rows[i];
-      // 「删掉一行 + 紧跟着新增一行」= 改了这一行：合并成一条渲染行，左旧右新
-      // 注意 git 对「连续多行都改了」的输出是「先整段删除，再整段新增」，
-      // 所以要先把整段删除收齐、再收整段新增，按下标一一对齐（标准分栏 diff 的做法），
-      // 不能只看「紧邻的删+增」——否则 password 会错配到 url 上。
-      const isDelOnly = r.oldType === 'remove' && r.newContent === null;
-      if (isDelOnly) {
-        let j = i;
-        while (j < rows.length && rows[j].oldType === 'remove' && rows[j].newContent === null) j++;
-        const dels = rows.slice(i, j);
-        let k = j;
-        while (k < rows.length && rows[k].oldContent === null && rows[k].newType === 'add') k++;
-        const adds = rows.slice(j, k);
-        const pairCount = Math.min(dels.length, adds.length);
-        for (let t = 0; t < pairCount; t++) {
-          result.push({ kind: 'modify', row: dels[t], newRow: adds[t], key: `m-${i + t}` });
-        }
-        // 数量对不上时，多出来的删除 / 新增各占一行
-        for (let t = pairCount; t < dels.length; t++) {
-          result.push({ kind: 'line', row: dels[t], key: `l-${i + t}` });
-        }
-        for (let t = pairCount; t < adds.length; t++) {
-          result.push({ kind: 'line', row: adds[t], key: `l-${j + t}` });
-        }
-        i = k;
-        continue;
-      }
-      if (r.oldType === 'normal' && r.newType === 'normal') {
-        let j = i;
-        while (j < rows.length && rows[j].oldType === 'normal' && rows[j].newType === 'normal') j++;
-        const count = j - i;
-        if (count >= 4) {
-          if (expandedDiffRuns.has(i)) {
-            result.push({ kind: 'toggle', startIdx: i, count, key: `t-${i}` });
-            for (let k = i; k < j; k++) {
-              result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
-            }
-          } else {
-            result.push({ kind: 'collapsed', startIdx: i, count, key: `c-${i}` });
-          }
-        } else {
-          for (let k = i; k < j; k++) {
-            result.push({ kind: 'line', row: rows[k], key: `l-${k}` });
-          }
-        }
-        i = j;
-      } else {
-        result.push({ kind: 'line', row: r, key: `l-${i}` });
-        i++;
-      }
-    }
-    return result;
-  }, [localFileDiff, expandedDiffRuns]);
+  const diffRenderRows = useMemo(() => buildDiffRenderRows(localFileDiff, expandedDiffRuns), [localFileDiff, expandedDiffRuns]);
+  const commitFileRenderRows = useMemo(() => buildDiffRenderRows(fileDiffRows, fileDiffExpandedRuns), [fileDiffRows, fileDiffExpandedRuns]);
 
   // 各行顶部的累计偏移（前缀和），用实测行高计算
   const diffOffsets = useMemo(() => {
@@ -1561,9 +1658,11 @@ function GitVisualizer() {
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       setDiffContainerHeight(entry.contentRect.height);
+      setDiffBodyWidth(entry.contentRect.width);
     });
     ro.observe(el);
     setDiffContainerHeight(el.clientHeight);
+    setDiffBodyWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
 
@@ -1579,7 +1678,9 @@ function GitVisualizer() {
       const el = diffBodyRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const pct = (e.clientX - rect.left) / rect.width;
+      // 用 clientWidth（内容宽度，不含滚动条），与手柄的像素定位保持同一坐标系
+      const width = el.clientWidth || rect.width;
+      const pct = (e.clientX - rect.left) / width;
       setDiffSplitPct(Math.min(0.85, Math.max(0.2, pct)));
     };
     const onUp = () => {
@@ -1596,17 +1697,30 @@ function GitVisualizer() {
     };
   }, []);
 
+  const toggleFileDiffRun = useCallback((startIdx: number) => {
+    setFileDiffExpandedRuns(prev => {
+      const next = new Set(prev);
+      if (next.has(startIdx)) next.delete(startIdx);
+      else next.add(startIdx);
+      return next;
+    });
+  }, []);
+
   const handleToggleCommit = async (commitHash: string) => {
     if (expandedCommit === commitHash) {
       setExpandedCommit(null);
       setCommitFiles(null);
       setExpandedFile(null);
-      setFileDiff('');
+      setFileDiffRows([]);
+      setFileDiffExpandedRuns(new Set());
+      setFileDiffDegraded(false);
       return;
     }
     setExpandedCommit(commitHash);
     setExpandedFile(null);
-    setFileDiff('');
+    setFileDiffRows([]);
+    setFileDiffExpandedRuns(new Set());
+    setFileDiffDegraded(false);
     setCommitFilesLoading(true);
     try {
       const data = await fetchCommitFiles(currentPath, commitHash);
@@ -1621,16 +1735,22 @@ function GitVisualizer() {
   const handleToggleFile = async (commitHash: string, filePath: string) => {
     if (expandedFile === filePath) {
       setExpandedFile(null);
-      setFileDiff('');
+      setFileDiffRows([]);
+      setFileDiffExpandedRuns(new Set());
+      setFileDiffDegraded(false);
       return;
     }
     setExpandedFile(filePath);
+    setFileDiffRows([]);
+    setFileDiffExpandedRuns(new Set());
+    setFileDiffDegraded(false);
     setFileDiffLoading(true);
     try {
       const data = await fetchCommitFileDiff(currentPath, commitHash, filePath);
-      setFileDiff(data.diff);
+      setFileDiffRows(data.rows || []);
+      setFileDiffDegraded(!!data.degraded);
     } catch (_) {
-      setFileDiff('Error loading diff');
+      setFileDiffRows([]);
     } finally {
       setFileDiffLoading(false);
     }
@@ -1833,19 +1953,24 @@ function GitVisualizer() {
                                       <span className="commit-file-toggle">{expandedFile === f.filePath ? '▼' : '▶'}</span>
                                     </div>
                                     {expandedFile === f.filePath && (
-                                      <pre className="commit-file-diff">
+                                      <div className="commit-file-diff-view">
                                         {fileDiffLoading ? (
                                           <p className="commit-files-loading">{t('common.loading')}</p>
                                         ) : (
-                                          fileDiff.split('\n').map((line, li) => {
-                                            let cls = '';
-                                            if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
-                                            else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-remove';
-                                            else if (line.startsWith('@@')) cls = 'diff-hunk';
-                                            return <div key={li} className={cls}>{line}</div>;
-                                          })
+                                          <div className="side-by-side-diff side-by-side-diff--nested">
+                                            <div className="side-by-side-header">
+                                              <div className="side-by-side-label">{t('local.original')}</div>
+                                              <div className="side-by-side-label">{t('local.modified')}</div>
+                                            </div>
+                                            <div className="side-by-side-body">
+                                              {commitFileRenderRows.map((item) => renderDiffRowItem(item, toggleFileDiffRun, t))}
+                                            </div>
+                                            {fileDiffDegraded && (
+                                              <div className="local-diff-notice">{t('local.degradedNotice')}</div>
+                                            )}
+                                          </div>
                                         )}
-                                      </pre>
+                                      </div>
                                     )}
                                   </div>
                                 ))
@@ -2090,95 +2215,21 @@ function GitVisualizer() {
                           <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>
                         </div>
-                        <div className="side-by-side-body" ref={(el) => { (diffBodyRef as React.MutableRefObject<HTMLDivElement | null>).current = el; (diffVirtualRef as React.MutableRefObject<HTMLDivElement | null>).current = el; }} style={{ '--left-pct': `${diffSplitPct * 100}%` } as React.CSSProperties} onScroll={handleDiffScroll}>
-                          <div className="diff-handle" onMouseDown={handleDiffMouseDown} />
+                        {/* 手柄放在 body 外面：body 是滚动容器，绝对定位元素会跟着内容滚走，
+                            放进这层不滚动的 viewport 才能保证滚动后依然可拖拽 */}
+                        <div className="side-by-side-viewport" style={{ '--left-pct': `${diffSplitPct * 100}%` } as React.CSSProperties}>
+                          <div className="side-by-side-body" ref={(el) => { (diffBodyRef as React.MutableRefObject<HTMLDivElement | null>).current = el; (diffVirtualRef as React.MutableRefObject<HTMLDivElement | null>).current = el; }} onScroll={handleDiffScroll}>
                           <div style={{ height: diffVirtualRows.totalHeight, position: 'relative' }}>
                             <div data-diff-rows="" style={{ position: 'absolute', top: diffVirtualRows.offsetY, left: 0, right: 0 }}>
-                              {diffVirtualRows.visible.map((item) => {
-                                if (item.kind === 'collapsed') {
-                                  return (
-                                    <div
-                                      key={item.key}
-                                      className="diff-row diff-row--collapsed"
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={() => toggleDiffRun(item.startIdx)}
-                                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDiffRun(item.startIdx); } }}
-                                    >
-                                      <div className="diff-wave" aria-hidden="true" />
-                                      <span className="diff-collapse-label">{t('local.unchangedLines', { count: item.count })}</span>
-                                    </div>
-                                  );
-                                }
-                                if (item.kind === 'toggle') {
-                                  return (
-                                    <div
-                                      key={item.key}
-                                      className="diff-row diff-row--toggle"
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={() => toggleDiffRun(item.startIdx)}
-                                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDiffRun(item.startIdx); } }}
-                                    >
-                                      <span className="diff-toggle-label">{t('local.collapseLines', { count: item.count })}</span>
-                                    </div>
-                                  );
-                                }
-                                // 「改了一行」：左旧右新同一行显示，并高亮真正变动的部分
-                                if (item.kind === 'modify') {
-                                  const oldText = item.row.oldContent || '';
-                                  const newText = item.newRow.newContent || '';
-                                  const tk = diffLineTokens(oldText, newText);
-                                  return (
-                                    <div key={item.key} className="diff-row diff-row--modify">
-                                      <div className="diff-cell diff-cell--old diff-cell--remove">
-                                        <span className="diff-line-content">
-                                          {tk
-                                            ? tk.a.map((tok, k) => (tk.oldChanged[k]
-                                              ? <span key={k} className="diff-word diff-word--del">{tok}</span>
-                                              : <span key={k}>{tok}</span>))
-                                            : oldText}
-                                        </span>
-                                        <span className="diff-line-num">{item.row.oldLine}</span>
-                                      </div>
-                                      <div className="diff-cell diff-cell--add">
-                                        <span className="diff-line-num">{item.newRow.newLine}</span>
-                                        <span className="diff-line-content">
-                                          {tk
-                                            ? tk.b.map((tok, k) => (tk.newChanged[k]
-                                              ? <span key={k} className="diff-word diff-word--add">{tok}</span>
-                                              : <span key={k}>{tok}</span>))
-                                            : newText}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                const row = item.row;
-                                return (
-                                  <div key={item.key} className="diff-row">
-                                    {row.oldContent !== null ? (
-                                      // 原始文件侧：行号放栏内右侧，与修改后侧的行号在分隔条两旁相邻
-                                      <div className={`diff-cell diff-cell--old${row.oldType === 'remove' ? ' diff-cell--remove' : ''}`}>
-                                        <span className="diff-line-content">{row.oldContent}</span>
-                                        <span className="diff-line-num">{row.oldLine}</span>
-                                      </div>
-                                    ) : (
-                                      <div className="diff-cell" />
-                                    )}
-                                    {row.newContent !== null ? (
-                                      <div className={`diff-cell${row.newType === 'add' ? ' diff-cell--add' : ''}`}>
-                                        <span className="diff-line-num">{row.newLine}</span>
-                                        <span className="diff-line-content">{row.newContent}</span>
-                                      </div>
-                                    ) : (
-                                      <div className="diff-cell" />
-                                    )}
-                                  </div>
-                                );
-                              })}
+                              {diffVirtualRows.visible.map((item) => renderDiffRowItem(item, toggleDiffRun, t))}
                             </div>
                           </div>
+                          </div>
+                          <div
+                            className="diff-handle"
+                            onMouseDown={handleDiffMouseDown}
+                            style={diffBodyWidth ? { left: diffSplitPct * diffBodyWidth } : undefined}
+                          />
                         </div>
                       </div>
                     </div>

@@ -91,7 +91,23 @@ export function fetchCommitFiles(dirPath: string, commitHash: string) {
   return axios.post(`${API_BASE_URL}/api/commit-files`, { dirPath, commitHash }).then(res => res.data);
 }
 
-export function fetchCommitFileDiff(dirPath: string, commitHash: string, filePath: string) {
+export interface CommitFileDiffRow {
+  oldLine: number | null;
+  oldContent: string | null;
+  oldType: string | null;
+  newLine: number | null;
+  newContent: string | null;
+  newType: string | null;
+}
+
+export interface CommitFileDiffResponse {
+  commitHash: string;
+  filePath: string;
+  rows: CommitFileDiffRow[];
+  degraded?: boolean;
+}
+
+export function fetchCommitFileDiff(dirPath: string, commitHash: string, filePath: string): Promise<CommitFileDiffResponse> {
   return axios.post(`${API_BASE_URL}/api/commit-file-diff`, { dirPath, commitHash, filePath }).then(res => res.data);
 }
 

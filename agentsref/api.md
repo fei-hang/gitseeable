@@ -9,7 +9,7 @@ All in `server/index.ts` (~1020 lines, with type annotations). REST: `GET /api/d
 | `POST /api/checkout` | Checkout branch or create-and-checkout |
 | `POST /api/branch` | Create / rename / delete branch |
 | `POST /api/commit-files` | List changed files in a commit |
-| `POST /api/commit-file-diff` | Get per-file diff (only +/- lines, no metadata) |
+| `POST /api/commit-file-diff` | Get per-file structured diff rows (with context; collapses ≥4 unchanged client-side) |
 | `POST /api/commit-graph` | Git log --graph with pagination, optional `branch` filter |
 | `POST /api/merge-branch` | Git merge a branch into current |
 | `POST /api/rebase-branch` | Git rebase (single-arg form: `git rebase <target>`, rebases current branch onto target) |

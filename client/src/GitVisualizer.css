@@ -683,6 +683,32 @@
   flex-shrink: 0;
 }
 
+/* 提交详情里的文件差异：嵌套分栏 + 上下文折叠展开 */
+.commit-file-diff-view {
+  margin: 0 0 var(--space-1);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--background-alt);
+}
+
+.commit-file-diff-view .side-by-side-diff--nested {
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  max-height: 420px;
+}
+
+.commit-file-diff-view .side-by-side-body {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.commit-file-diff-view .local-diff-notice {
+  display: inline-block;
+  margin: 4px 8px 6px;
+}
+
 .commit-file-diff {
   margin: 0 0 var(--space-1);
   padding: var(--space-2) var(--space-4);
@@ -1389,6 +1415,14 @@
   border-right: 1px solid var(--border);
 }
 
+/* 不滚动的定位层：body 在内部滚动，拖拽手柄放在这一层才不会跟着内容滚走 */
+.side-by-side-viewport {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .side-by-side-body {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1428,6 +1462,8 @@
   border-right: none;
 }
 
+/* 手柄在 .side-by-side-viewport 里（不随内容滚动）；
+   left 由 JS 按像素给出，与左栏宽度同一坐标系，CSS 这行只在首帧未测量时兜底 */
 .diff-handle {
   position: absolute;
   left: var(--left-pct, 50%);
@@ -1559,6 +1595,13 @@
 .diff-cell--old .diff-line-num {
   padding-right: 4px;
   padding-left: 8px;
+}
+
+/* 修改后侧：行号左对齐紧贴分隔条，与原始文件侧「距分隔条 4px」完全对称 */
+.diff-cell--new .diff-line-num {
+  text-align: left;
+  padding-left: 4px;
+  padding-right: 8px;
 }
 
 .diff-line-content {
