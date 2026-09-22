@@ -2242,7 +2242,7 @@ function GitVisualizer() {
                             onClick={() => setDiffEnlarged(v => !v)}
                             style={{ left: `${diffSplitPct * 100}%` }}
                           >
-                            {diffEnlarged ? '⤡' : '⤢'}
+                            {diffEnlarged ? '⤡' : '[ ]'}
                           </button>
                         </div>
                         {/* 手柄放在 body 外面：body 是滚动容器，绝对定位元素会跟着内容滚走，
