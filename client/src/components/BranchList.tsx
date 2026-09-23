@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MAX_VISIBLE_BRANCHES } from '../constants';
+import { RefreshIcon } from './Icons';
 import './BranchList.css';
 
 interface BranchItem {
@@ -48,7 +49,7 @@ function BranchList({ title, branches, currentBranch, selectedBranch, onSelect, 
             title={t('context.fetch')}
             disabled={fetching}
           >
-            ↻
+            <RefreshIcon />
           </button>
         )}
       </h3>

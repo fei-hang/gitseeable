@@ -35,12 +35,22 @@
   color: var(--text-secondary);
   font-family: var(--font-sans);
   transition: all var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .refresh-button:hover {
   border-color: var(--border-hover);
   background: var(--surface-hover);
   color: var(--primary);
+}
+
+/* 按钮内的刷新 SVG 图标（固定设计色，不随按钮文字色变化） */
+.refresh-button svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
 }
 
 .lang-switch {

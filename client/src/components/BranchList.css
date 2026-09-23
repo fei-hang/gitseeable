@@ -37,6 +37,13 @@
   color: var(--primary);
 }
 
+/* 按钮内的刷新 SVG 图标：块级撑满按钮，fetching 旋转动画由按钮整体承担 */
+.branch-fetch-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
 .branch-fetch-btn--spinning {
   animation: spin 0.8s linear infinite;
   color: var(--primary);

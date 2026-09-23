@@ -35,7 +35,7 @@
     "tabCommits": "Commits",
     "tabCompare": "Branch Compare",
     "tabLocal": "Local Changes",
-    "refresh": "↻ Refresh"
+    "refresh": "Refresh"
   },
   "local": {
     "commitPlaceholder": "Enter commit message...",
