@@ -1427,6 +1427,15 @@
   color: var(--primary);
 }
 
+/* 按钮内 SVG 图标：跟随按钮颜色（含 hover 高亮），固定 14px 居中 */
+.diff-enlarge-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: currentColor;
+}
+
 /* 对比结果放大到整个画面：顶行固定显示文件路径，下方为对比区 */
 .local-diff-view--enlarged {
   position: fixed;
