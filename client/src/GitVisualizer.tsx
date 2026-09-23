@@ -2265,16 +2265,16 @@ function GitVisualizer() {
                   ) : localFileDiffLoading ? (
                     <p className="local-diff-loading">{t('common.loading')}</p>
                   ) : (
-                    <div className="local-diff-view">
+                    <div className={`local-diff-view${diffEnlarged ? ' local-diff-view--enlarged' : ''}`}>
                       <div className="local-diff-header">
-                        <span className="local-diff-file">{selectedLocalFile}</span>
+                        <span className="local-diff-file" title={selectedLocalFile}>{selectedLocalFile}</span>
                         <span className="local-diff-type">{selectedLocalFileType === 'staged' ? t('local.stagedType') : t('local.unstagedType')}</span>
                         {selectedLocalFileType === 'staged' && stagedDirtySet.has(selectedLocalFile) && (
                           <span className="local-diff-type local-diff-type--latest">{t('local.stagedLatestType')}</span>
                         )}
                         {localFileDiffDegraded && <span className="local-diff-notice">{t('local.degradedNotice')}</span>}
                       </div>
-                      <div className={`side-by-side-diff${diffEnlarged ? ' side-by-side-diff--enlarged' : ''}`}>
+                      <div className="side-by-side-diff">
                         <div className="side-by-side-header">
                           <div className="side-by-side-label" style={{ width: `${diffSplitPct * 100}%`, flex: 'none', minWidth: 200 }}>{t('local.original')}</div>
                           <div className="side-by-side-label">{t('local.modified')}</div>

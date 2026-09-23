@@ -1427,14 +1427,19 @@
   color: var(--primary);
 }
 
-/* 对比结果放大到整个画面 */
-.side-by-side-diff--enlarged {
+/* 对比结果放大到整个画面：顶行固定显示文件路径，下方为对比区 */
+.local-diff-view--enlarged {
   position: fixed;
   inset: 0;
   z-index: 200;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
+  padding: 12px;
+  background: var(--background);
+}
+
+/* 放大时顶行的文件路径更醒目 */
+.local-diff-view--enlarged .local-diff-header {
+  font-size: 13px;
+  padding: 10px 14px;
 }
 
 .side-by-side-label {
