@@ -54,8 +54,8 @@ npm run build:plugin
 tarball**（分发时，`file:` 到固定版本，装进 profile 的 `node_modules` 里复制一份）：
 
 ```sh
-cd dsh-plugin && npm pack --pack-destination ..   # → dsh-gitseeable-1.0.0.tgz
-".../dsh.cmd" plugin --profile desktop add --registry=https://registry.npmjs.org/ "D:/path/to/dsh-gitseeable-1.0.0.tgz"
+cd dsh-plugin && npm pack --pack-destination ..   # → dsh-gitseeable-<version>.tgz
+".../dsh.cmd" plugin --profile desktop add --registry=https://registry.npmjs.org/ "D:/path/to/dsh-gitseeable-<version>.tgz"
 ```
 
 > 两者切换时要先 `remove` 再 `add`：pnpm 会记住原来的 specifier，直接重装有可能
