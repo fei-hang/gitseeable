@@ -38,25 +38,47 @@ npm run build:plugin
 > 必须是应用自带的 CLI（`dsh.cmd` 或上面那条展开命令），两者内部都是
 > `dsh-desktop-host/lib/cli.js` + `manageDesktopProfile: true`。
 
-### 如果 pnpm 安装被供应链策略挡住
+### 如果 pnpm 报 ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
 
-桌面 profile 在 `$DSH_HOME/profiles/desktop/pnpm-workspace.yaml` 里启用了
-`minimumReleaseAge` 校验。若锁文件里有过期/下架的依赖（例如
-`@dsh-ops/bash-win32-x64@0.2.1` 在 registry 上并不存在），任何 `pnpm add` 都会整体失败：
+症状是**任何** `dsh plugin add` 都整体失败：
 
 ```
-[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] ... could not be checked against minimumReleaseAge
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION]
+@dsh-ops/bash-win32-x64@0.2.1 could not be checked against minimumReleaseAge
+(version not present in registry manifest)
 ```
 
-这是 profile 自身的问题，与插件无关。**不经过包管理器**安装本地插件即可绕开
-（DSH 是用标准 Node 解析从 `node_modules` 找 bundle 的，符号链接就够）：
+**根因是 registry 镜像不同步，不是包缺失**。这个包在官方 npm 上存在
+（`0.2.1`），但淘宝镜像 `registry.npmmirror.com` 只同步到了 `0.0.0-stage`。
+桌面 profile 的 `registry` 若指向镜像，`minimumReleaseAge` 就无法确认这个版本，
+于是整个 lockfile 校验失败——与你装的是哪个插件无关。
+
+先确认自己的 registry：
+
+```sh
+pnpm config get registry     # 看到 npmmirror 就是这个问题
+```
+
+加上官方 registry 重装即可（也解释了为什么此前装别的插件能成功：
+那时锁文件条目少、或镜像当时还没有缺这个版本）：
+
+```sh
+"<安装目录>/resources/runtime/cli/bin/dsh.cmd" plugin --profile desktop \
+  add --registry=https://registry.npmjs.org/ <包绝对路径>
+```
+
+> 注意 `--registry` 必须放在 `add` 之后；`remove` 不接受该参数，
+> 需要时用 `pnpm remove -w <name> --config.registry=https://registry.npmjs.org/`。
+
+若确实无法切 registry，也可以完全绕开包管理器（DSH 用标准 Node 解析从
+`node_modules` 找 bundle，符号链接就够）：
 
 ```sh
 cd "$DSH_HOME/profiles/desktop"
 mklink /J node_modules\dsh-gitseeable <插件绝对路径>   # Windows；Linux/macOS 用 ln -s
 ```
 
-然后手工在 `package.json` 的两处加上插件：
+再手工在 `package.json` 两处加上插件：
 
 ```jsonc
 {

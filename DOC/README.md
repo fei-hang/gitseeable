@@ -359,11 +359,15 @@ npm run build:plugin                              # 构建前端 + 装配插件�
 
 安装完**完全重启** DeepSeek Harness。
 
-> 若报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`（桌面 profile 锁文件里有过期依赖，
-> 与本插件无关），改用不改包管理器的方式安装：在 profile 的 `node_modules` 里建一个
-> 指向 `dsh-plugin` 的符号链接，再把 `dsh-gitseeable` 分别加进该 profile
-> `package.json` 的 `dependencies` 和 `dsh.profile.bundles`。详见
-> [`dsh-plugin/README.md`](../dsh-plugin/README.md)。
+> 若报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`（提示
+> `@dsh-ops/bash-win32-x64@0.2.1 could not be checked against minimumReleaseAge`）：
+> 这是 **registry 镜像不同步**导致的，与插件无关——该版本在官方 npm 上存在，
+> 但淘宝镜像没有。给命令加上官方 registry 即可：
+>
+> ```sh
+> "<安装目录>/resources/runtime/cli/bin/dsh.cmd" plugin --profile desktop \
+>   add --registry=https://registry.npmjs.org/ ./dsh-plugin
+> ```
 
 ### 打开
 
