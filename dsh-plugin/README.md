@@ -10,8 +10,25 @@ GitSeeable 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harnes
 - **浏览器侧**（`lib/client.js`）：向右侧栏注册一个 tab 类型，并在
   `sidebar.right.pane.tab` 的 guide（「开始」页）里贡献一个入口胶囊。
 
-打开后是一个 iframe，指向 `/<前缀>/?dir=<当前会话的工作区>`，因此会直接定位到
-当前工作区的仓库；随后在 GitSeeable 里可以照常切换目录、扫描和浏览。
+打开后是一个 iframe，指向 `/<前缀>/?dir=<当前会话的工作区>&theme=<亮/暗>`，
+因此会直接定位到当前工作区的仓库；随后在 GitSeeable 里可以照常切换目录、扫描和浏览。
+
+## 主题：跟随 DeepSeek Harness
+
+页面配色**跟着 Harness 走**（亮对亮、暗对暗，包括「跟随系统」），插件里没有独立的
+主题开关。两个文档各有自己的 CSS，iframe 无法继承宿主的变量，所以桥接分两条路：
+
+| 时机 | 手段 |
+|---|---|
+| 首帧 | 挂载 URL 带 `?theme=dark\|light`，`client/index.html` 里的内联脚本在样式表之前把它写到 `<html>` 上，深色宿主里不会闪白 |
+| 宿主切换主题 | `postMessage({ type: 'gitseeable:theme', theme })` 实时推送，不重载 iframe，不丢失当前浏览的仓库 |
+
+宿主侧的配色来源有两个（互为备份）：`theme` 服务的 `theme/change` 事件，以及
+`<body data-ds-dark-theme>` 属性的变化（Harness 的 ThemePresenter 就写在这里）。
+弹窗、滚动条等原生控件也跟着走——页面会把 `color-scheme` 同步到 `<html>`。
+
+页面还会在挂载和重新获得焦点时发一条 `gitseeable:ready`，让宿主补发当前配色，
+避免切换发生得比 iframe 加载还早时丢失。
 
 ## 安装
 
@@ -69,6 +86,18 @@ pnpm config get registry     # 看到 npmmirror 就是这个问题
 
 > 注意 `--registry` 必须放在 `add` 之后；`remove` 不接受该参数，
 > 需要时用 `pnpm remove -w <name> --config.registry=https://registry.npmjs.org/`。
+
+想**只对桌面 profile 长期生效**，在 profile 目录放一份项目级 `.npmrc`
+（pnpm 优先读工程目录的配置，不动你其它项目的镜像设置）：
+
+```sh
+# C:\Users\<你>\.dsh\profiles\desktop\.npmrc
+registry=https://registry.npmjs.org/
+```
+
+> 程序装在 D 盘、profile 却在 `C:\Users\<你>\.dsh\profiles\desktop`，
+> 是因为 `DSH_HOME` 指向后者：插件由 pnpm 当作一个独立工程安装在那里，
+> 而安装目录里的 `app.asar` 是只读程序体。`.npmrc` 必须跟着 pnpm 的工程目录走。
 
 若确实无法切 registry，也可以完全绕开包管理器（DSH 用标准 Node 解析从
 `node_modules` 找 bundle，符号链接就够）：
@@ -139,3 +168,5 @@ Connection 的浏览器认证（`connection.authorizeIndex`）：只有带着 Ha
   但外链的 Google Fonts 在离线环境会静默失败，仅影响字体。
 - 右侧栏宽度较窄时，GitSeeable 自己的三栏布局会比较挤；可以切面板全屏。
 - 只暴露一个入口：一个 pane 里最多一个 GitSeeable 页（页面类 tab 去重）。
+- 插件里**没有**独立的主题开关：配色完全由 Harness 决定。想单独换配色请用
+  独立运行（`npm start`），那里保留原来的浅色 / 深色按钮。

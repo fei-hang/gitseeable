@@ -321,6 +321,9 @@
 
 ![深色模式](03-dark-mode.png)
 
+> **作为 DeepSeek Harness 插件运行时**，这个按钮不出现：配色改由 Harness 决定，
+> 亮对亮、暗对暗，详见 [第 8 节](#8-在-deepseek-harness-里使用插件)。
+
 ---
 
 ## 7. 中英文切换
@@ -382,6 +385,23 @@ GitSeeable 里切换目录、扫描仓库、看提交图和本地修改。
 搜索框里也能用快捷键 **Ctrl/Cmd + Shift + G** 打开（与宿主已有按键冲突时会被跳过，
 此时用上面的入口胶囊即可）。
 
+### 主题跟随 Harness
+
+插件里的配色**自动跟随 DeepSeek Harness**，不需要也不能在 GitSeeable 里单独设置：
+
+- Harness 用浅色 → GitSeeable 浅色
+- Harness 用深色 → GitSeeable 深色
+- Harness 选「跟随系统」→ 系统切深浅时 GitSeeable 一起变
+
+切换是**实时**的：已经打开的 GitSeeable 面板会立刻换色，不会重新加载页面，
+也不会丢掉你正在看的仓库、分支或 diff。
+
+实现上分两段：首帧由挂载 URL 的 `?theme=dark|light` 直接写进 `<html>`（所以深色宿主里
+不会闪一下白屏），之后由 Harness 通过 `postMessage` 推送变化。弹窗、滚动条、输入框等
+原生控件也会跟着变（页面同步了 `color-scheme`）。
+
+想给 GitSeeable 换独立配色，请用独立运行模式（`npm start`），那里保留浅色 / 深色按钮。
+
 ### 配置挂载前缀
 
 默认挂在 `/gitseeable/`，接口在同前缀下的 `/gitseeable/api/...`。要改前缀，在 profile 的
@@ -399,6 +419,7 @@ GitSeeable 里切换目录、扫描仓库、看提交图和本地修改。
 |---|---|---|
 | 页面地址 | `http://localhost:3001/` | `http://<host>/gitseeable/` |
 | 接口前缀 | `/api/...` | `/gitseeable/api/...` |
+| 配色 | 页面自己的 ☀️ / 🌙 按钮，偏好存进界面偏好 | 跟随 Harness 主题，无独立开关 |
 | 界面偏好落盘 | `server/dist/state.json` | `$DSH_HOME/storages/gitseeable/state.json` |
 | 启动方式 | `npm start` / 全局命令 | Harness 自动挂载 |
 
@@ -414,4 +435,7 @@ GitSeeable 会读取任意目录并执行 git 命令，所以插件的路由经�
 ```sh
 dsh plugin --profile desktop remove dsh-gitseeable
 ```
+
+（`desktop` 是保留 profile，这条同样要用应用自带的
+`resources/runtime/cli/bin/dsh.cmd`，而不是 PATH 上的全局 `dsh`。）
 

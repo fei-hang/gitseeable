@@ -44,7 +44,8 @@ Full-stack Git repo visualizer: React 19 + Vite 5 + TS frontend (`client/`, ESM)
 - Layout: `client/src/{api,components,locales,constants}` · `agentsref/` specs · `DOC/` user docs + screenshots · `scripts/copy-client.js` build step.
 - Dev networking: `client/vite.config.js` proxies `/api` → `localhost:3001`; the client build uses `base: './'` and derives its API prefix from `window.location.pathname` (`client/src/constants/index.ts`) — `''` when served at the root, `/gitseeable` under the DSH plugin. One build serves both hosts.
 - Endpoint catalog = `client/src/api/index.ts` (one axios fn per route) + contract in `agentsref/api.md`. Everything is POST except GET `/api/drives`, `/api/last-path`, `/api/ui-state`, plus SSE `GET /api/file-events` (EventSource in `GitVisualizer.tsx` — live worktree updates).
-- Persistence: **no client-side storage** (no localStorage/sessionStorage) — UI prefs round-trip `GET/POST /api/ui-state` via a debounced save.
+- Persistence: **no client-side storage** (no localStorage/sessionStorage) — UI prefs round-trip `GET/POST /api/ui-state` via a debounced save. Exception: under DSH the theme preference is the host's, so embedded mode neither reads nor writes `theme` there.
+- Theme under DSH: the framed page **follows the host palette** — `?theme=dark|light` on the mount URL (read by an inline script in `client/index.html` before first paint) plus `postMessage({type:'gitseeable:theme'})` for live switches. `client/src/theme.ts` is the page half; `dsh-plugin/lib/client.js` mirrors `ctx.theme` **and** the `<body data-ds-dark-theme>` attribute into a `useSyncExternalStore` palette store. Embedded mode hides the ☀️/🌙 button (`EMBEDDED` flag in `GitVisualizer.tsx`). Keep the message-type constants in `theme.ts` and `dsh-plugin/lib/client.js` in sync.
 - Express **5**, not 4 (`req.query`, route syntax differ) — see `agentsref/dev-quirks.md`.
 
 ## Where to look

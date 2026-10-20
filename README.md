@@ -86,6 +86,77 @@ npm run dev
 
 Open http://localhost:3000 in your browser.
 
+## DeepSeek Harness Plugin (Desktop)
+
+GitSeeable also ships as a **DeepSeek Harness** plugin: instead of running its own
+server, it mounts inside the Harness right Sidebar and appears as an entry on the
+「开始」 (Start) page. This is what `dsh-plugin/` contains.
+
+### Install
+
+```sh
+npm run build:plugin
+```
+
+Then install with the CLI that **ships inside the app** — `desktop` is a reserved
+profile, and the global `dsh` on your PATH is not allowed to manage it:
+
+```sh
+# Windows (paths shown for a default install)
+"D:\softwareInstallationDirectory\deepseekharness\resources\runtime\cli\bin\dsh.cmd" \
+  plugin --profile desktop add "D:\path\to\gitseeable\dsh-plugin"
+
+# the long form the .cmd wrapper expands to
+"D:\softwareInstallationDirectory\deepseekharness\DeepSeek Harness.exe" --expose-internals \
+  "D:\softwareInstallationDirectory\deepseekharness\resources\app.asar\dsh\node_modules\@deepseek-ai\dsh-desktop-host\lib\cli.js" \
+  plugin --profile desktop add "D:\path\to\gitseeable\dsh-plugin"
+```
+
+```sh
+# macOS / Linux
+"/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness" --expose-internals \
+  "/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
+  plugin --profile desktop add ~/path/to/gitseeable/dsh-plugin
+```
+
+**Fully quit and restart** DeepSeek Harness afterwards.
+
+### Use
+
+1. Open the right Sidebar (expand it if it is collapsed).
+2. On the 「开始」 (Start) page, click the **GitSeeable** entry.
+3. The page opens in that pane, already pointed at the current session's workspace.
+
+`Ctrl/Cmd + Shift + G` opens it too (skipped silently if the chord is taken).
+
+### Theme
+
+The page follows the Harness theme — light to light, dark to dark, including
+`System`. There is no separate theme toggle inside the plugin: the framed page
+receives the palette on its URL for the first paint and then over `postMessage`,
+so switching the Harness theme restyles an open GitSeeable pane immediately
+without reloading it or losing the repository you are browsing.
+
+Standalone (`npm start`) keeps its own light/dark switch as before.
+
+### If `dsh plugin add` fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
+
+The message names `@dsh-ops/bash-win32-x64@0.2.1 could not be checked against
+minimumReleaseAge (version not present in registry manifest)`. The cause is a
+**registry mirror lag**, not a missing package: that version exists on
+`registry.npmjs.org`, but the mirror (e.g. `registry.npmmirror.com`) has not
+synced it, so pnpm cannot confirm it and the whole install aborts. Point the
+install at the official registry:
+
+```sh
+".../dsh.cmd" plugin --profile desktop add --registry=https://registry.npmjs.org/ "D:\path\to\dsh-plugin"
+```
+
+`--registry` must come **after** `add`; `remove` rejects the flag and needs
+`pnpm remove -w <name> --config.registry=https://registry.npmjs.org/` instead.
+To make this permanent for the desktop profile only, put a one-line `.npmrc`
+in the profile directory (see `dsh-plugin/README.md`).
+
 ## Commands
 
 | Command | Description |
@@ -97,6 +168,7 @@ Open http://localhost:3000 in your browser.
 | `cd client && npm run lint` | Run ESLint |
 | `cd server && npm run dev` | Server dev mode (tsx watch) |
 | `cd server && npm run build` | Compile server TypeScript |
+| `npm run build:plugin` | Client build + assemble the DeepSeek Harness plugin into `dsh-plugin/` |
 
 ## AI-Friendly Quick Start
 

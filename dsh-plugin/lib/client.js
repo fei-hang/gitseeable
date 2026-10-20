@@ -34,6 +34,79 @@ window.__ModuleLoader__.load({
     /** The prefix the patch row uses; discovery wins when a deployment moves it. */
     const DEFAULT_BASE_PATH = '/gitseeable';
 
+    /** Theme message types shared with the framed page (`client/src/theme.ts`). */
+    const THEME_MESSAGE = 'gitseeable:theme';
+    const THEME_READY = 'gitseeable:ready';
+
+    /**
+     * Translate the Harness theme snapshot into the two schemes GitSeeable knows.
+     * The snapshot resolves `system` upstream (`active.colorScheme`), so reading it
+     * follows the OS preference without a second media query here.
+     * @param snapshot - `theme` service snapshot, possibly undefined before mount.
+     * @returns the scheme to project into the frame.
+     */
+    function schemeFrom(snapshot) {
+      return snapshot !== undefined && snapshot !== null
+        && snapshot.active !== undefined && snapshot.active !== null
+        && snapshot.active.colorScheme === 'dark' ? 'dark' : 'light';
+    }
+
+    /**
+     * The palette the Harness presenter has already written to the document.
+     * @returns the rendered scheme, defaulting to light without a document.
+     */
+    function renderedScheme() {
+      return typeof document !== 'undefined'
+        && document.body !== null
+        && document.body.hasAttribute('data-ds-dark-theme') ? 'dark' : 'light';
+    }
+
+    /**
+     * The host's current color scheme, readable from React.
+     *
+     * The tab body is dispatched through the slot registry and never sees the
+     * plugin context, so the host theme is mirrored into this tiny store and the
+     * body reads it with `useSyncExternalStore`. It starts from the rendered
+     * `data-ds-dark-theme` attribute — the one signal that is already correct
+     * before the theme service is reachable — and is kept current by `apply`.
+     */
+    function createSchemeStore() {
+      const listeners = new Set();
+      let scheme = null;
+
+      return {
+        /**
+         * Current scheme; the snapshot function React calls on every render.
+         * The first read happens on mount, not at module evaluation, so the
+         * palette attribute the Harness presenter wrote is already there.
+         */
+        get: function get() {
+          if (scheme === null) scheme = renderedScheme();
+          return scheme;
+        },
+        /** Adopt a scheme, notifying React only when it actually changed. */
+        set: function set(next) {
+          const normalized = next === 'dark' ? 'dark' : 'light';
+          if (scheme === normalized) return;
+          scheme = normalized;
+          listeners.forEach(function notify(listener) { listener(); });
+        },
+        /** Re-read the palette the Harness presenter has written. */
+        syncFromDocument: function syncFromDocument() { this.set(renderedScheme()) },
+        /** `useSyncExternalStore` substrate. */
+        subscribe: function subscribe(listener) {
+          listeners.add(listener);
+          return function unsubscribe() { listeners.delete(listener); };
+        },
+      };
+    }
+
+    /**
+     * One palette mirror for the whole client plugin: every open GitSeeable tab
+     * follows the same host theme, so a single store is enough.
+     */
+    const schemeStore = createSchemeStore();
+
     /** Simplified Chinese dictionary (the key-set source of truth). */
     const zh = {
       'type.label': 'GitSeeable',
@@ -139,7 +212,8 @@ window.__ModuleLoader__.load({
 
     /**
      * The tab body: one iframe over the GitSeeable SPA at the discovered prefix,
-     * seeded with the session's workspace so it opens that repository directly.
+     * seeded with the session's workspace so it opens that repository directly,
+     * and kept in step with the Harness palette.
      */
     function GitSeeableBody(props) {
       const useTabInfo = props.useTabInfo;
@@ -163,9 +237,11 @@ window.__ModuleLoader__.load({
       // Capture the Workspace once: a later cwd change must not yank the frame
       // out from under whatever the user is browsing.
       const initialDir = React.useRef(workspaceCwd);
+      const frameRef = React.useRef(null);
       const [basePath, setBasePath] = React.useState(null);
       const [epoch, setEpoch] = React.useState(0);
       const [failed, setFailed] = React.useState(false);
+      const scheme = React.useSyncExternalStore(schemeStore.subscribe, schemeStore.get, schemeStore.get);
 
       React.useEffect(function discover() {
         let live = true;
@@ -183,12 +259,42 @@ window.__ModuleLoader__.load({
         return tabActions.bindCommands({ refresh: retry });
       }, [tabActions, retry]);
 
+      // Push the palette into the frame. Reloading it on every switch would throw
+      // away whatever the user is browsing, so a live frame just gets a message;
+      // the URL seed below only covers the first paint.
+      const pushScheme = React.useCallback(function pushScheme() {
+        const frame = frameRef.current;
+        if (frame === null || frame.contentWindow === null) return;
+        try {
+          frame.contentWindow.postMessage({ type: THEME_MESSAGE, theme: scheme }, '*');
+        } catch {
+          // The frame is mid-navigation; its own ready message re-triggers this.
+        }
+      }, [scheme]);
+
+      React.useEffect(function syncScheme() { pushScheme(); }, [pushScheme]);
+
+      // The framed page announces readiness so an early switch is not lost, and
+      // re-announces on focus for the same reason.
+      React.useEffect(function listenReady() {
+        const onMessage = (event) => {
+          if (frameRef.current === null || event.source !== frameRef.current.contentWindow) return;
+          const data = event.data;
+          if (data !== null && typeof data === 'object' && data.type === THEME_READY) pushScheme();
+        };
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+      }, [pushScheme]);
+
       const src = React.useMemo(function buildSrc() {
         if (basePath === null) return null;
         const dir = initialDir.current;
-        return typeof dir === 'string' && dir !== ''
-          ? basePath + '/?dir=' + encodeURIComponent(dir)
-          : basePath + '/';
+        const query = [];
+        if (typeof dir === 'string' && dir !== '') query.push('dir=' + encodeURIComponent(dir));
+        query.push('theme=' + schemeStore.get());
+        return basePath + '/?' + query.join('&');
+        // `scheme` is deliberately absent: a palette switch must not reload the frame.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [basePath]);
 
       if (src === null) {
@@ -197,6 +303,7 @@ window.__ModuleLoader__.load({
         }, t('connecting'));
       }
 
+      const background = scheme === 'dark' ? '#0f172a' : '#ffffff';
       const frame = failed
         ? createElement(Unavailable, {
           title: t('unavailable'),
@@ -206,13 +313,15 @@ window.__ModuleLoader__.load({
         })
         : createElement('iframe', {
           key: src + '#' + String(epoch),
+          ref: frameRef,
           src: src,
           title: t('type.label'),
           // Same posture as the shipped Browser tab: scripts and forms run, and
           // the frame keeps its own origin so its same-origin API calls work.
           sandbox: 'allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox',
+          onLoad: pushScheme,
           onError: function onFrameError() { setFailed(true); },
-          style: { flex: 1, minHeight: 0, width: '100%', border: 0, background: '#fff' },
+          style: { flex: 1, minHeight: 0, width: '100%', border: 0, background: background },
         }, 'gitseeable-frame');
 
       // The tab body's own element: the Sidebar gives the seat `height: 100%`,
@@ -266,6 +375,28 @@ window.__ModuleLoader__.load({
           }, GitSeeableTitle);
         });
       }, 'gitseeable: tab title');
+
+      ctx.inject(['theme'], function followHostTheme(scoped) {
+        scoped.effect(function adoptTheme() {
+          // Read and subscribe: `theme/change` fires for every path that can alter
+          // the palette (preference switch, `system` + OS flip, registered theme).
+          const adopt = function adopt() { schemeStore.set(schemeFrom(scoped.theme.getTheme())); };
+          adopt();
+          return scoped.on('theme/change', adopt);
+        }, 'gitseeable: host palette');
+      });
+
+      // Fallback for a composition without the theme service (or one whose events
+      // arrive before this fiber mounts): the presenter writes the palette
+      // attribute on `body`, so watching it keeps the frame in step regardless.
+      ctx.effect(function watchPalette() {
+        schemeStore.syncFromDocument();
+        if (typeof document === 'undefined' || document.body === null) return function noop() {};
+        if (typeof MutationObserver !== 'function') return function noop() {};
+        const observer = new MutationObserver(function onPaletteChange() { schemeStore.syncFromDocument(); });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] });
+        return function release() { observer.disconnect(); };
+      }, 'gitseeable: palette attribute watch');
 
       ctx.inject(['shortcuts'], function installShortcut(scoped) {
         scoped.effect(function registerShortcut() {

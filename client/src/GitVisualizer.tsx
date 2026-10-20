@@ -21,7 +21,20 @@ import BranchList from './components/BranchList';
 import ContextMenu from './components/ContextMenu';
 import ConflictResolver from './components/ConflictResolver';
 import { EnlargeIcon, ShrinkIcon, RefreshIcon } from './components/Icons';
+import {
+  announceThemeReady,
+  isEmbedded,
+  parseThemeMessage,
+  readSeededTheme,
+  type ColorScheme,
+} from './theme';
 import './GitVisualizer.css';
+
+/** 是否运行在宿主 iframe 里：整页生命周期内不变，放在模块级以免污染 effect 依赖。 */
+const EMBEDDED = isEmbedded();
+
+/** 首帧配色：嵌入时用宿主在 URL 里播种的值，独立运行时沿用浅色默认。 */
+const INITIAL_THEME: ColorScheme = readSeededTheme() ?? 'light';
 
 interface GitInfo {
   isGitRepo: boolean;
@@ -338,7 +351,9 @@ function GitVisualizer() {
   const [unstageLoading, setUnstageLoading] = useState(false);
   const [selectedStagedFiles, setSelectedStagedFiles] = useState<Record<string, boolean>>({});
   const [selectedUnstagedFiles, setSelectedUnstagedFiles] = useState<Record<string, boolean>>({});
-  const [theme, setTheme] = useState('light');
+  // 作为 DSH 插件嵌入时配色由宿主决定：先取挂载 URL 里播种的首帧值，之后靠 postMessage
+  // 跟随。同时不再读写 ui-state 里的 theme —— 否则两个宿主会互相覆盖对方的偏好。
+  const [theme, setTheme] = useState<ColorScheme>(INITIAL_THEME);
   const [conflictFiles, setConflictFiles] = useState<string[] | null>(null);
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictTheirsBranch, setConflictTheirsBranch] = useState<string | null>(null);
@@ -383,7 +398,7 @@ function GitVisualizer() {
       if (s.activeTab) setActiveTab(s.activeTab);
       if (typeof s.sidebarWidth === 'number') setSidebarWidth(s.sidebarWidth);
       if (s.lang && s.lang !== i18n.language) i18n.changeLanguage(s.lang);
-      if (s.theme) setTheme(s.theme);
+      if (s.theme && !EMBEDDED) setTheme(s.theme);
       if (s.skipDropConfirm) setSkipDropConfirm(true);
       if (s.pullStrategy === 'merge' || s.pullStrategy === 'rebase') setPullStrategy(s.pullStrategy);
     }).catch(() => {});
@@ -398,8 +413,31 @@ function GitVisualizer() {
 
   useEffect(() => { queueSaveUiState({ activeTab }); }, [activeTab, queueSaveUiState]);
   useEffect(() => { queueSaveUiState({ sidebarWidth }); }, [sidebarWidth, queueSaveUiState]);
-  useEffect(() => { queueSaveUiState({ theme }); }, [theme, queueSaveUiState]);
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  // 嵌入模式下配色归宿主所有：不落盘，避免把宿主的深色写成独立版的默认。
+  useEffect(() => { if (!EMBEDDED) queueSaveUiState({ theme }); }, [theme, queueSaveUiState]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    // 让原生控件（滚动条、输入框、下拉）跟着走；宿主同一份设置写在 <html> 上。
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
+
+  // 宿主切换主题时实时跟随：监听 postMessage，并在就绪/重新可见时主动拉一次，
+  // 这样消息早于本组件挂载也不会丢掉当前配色。
+  useEffect(() => {
+    if (!EMBEDDED) return;
+    const onMessage = (event: MessageEvent) => {
+      const scheme = parseThemeMessage(event.data);
+      if (scheme !== null) setTheme(scheme);
+    };
+    const pull = () => announceThemeReady();
+    window.addEventListener('message', onMessage);
+    window.addEventListener('focus', pull);
+    pull();
+    return () => {
+      window.removeEventListener('message', onMessage);
+      window.removeEventListener('focus', pull);
+    };
+  }, []);
   // 拉取策略只在用户主动切换时落盘，避免挂载时的默认值覆盖已保存的选择
 
   const handleLoadDrives = async () => {
@@ -1949,7 +1987,8 @@ function GitVisualizer() {
             </button>
           </div>
           <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
-          <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
+          {/* 嵌入在 Harness 里时配色跟随宿主，本页不再提供独立开关 */}
+          {!EMBEDDED && <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>}
         </div>
         <div className="analyze-body">
           <div className={`analyze-sidebar${isSidebarCollapsed ? ' analyze-sidebar--collapsed' : ''}`} ref={sidebarRef} style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}>
@@ -2345,7 +2384,8 @@ function GitVisualizer() {
       <div className="select-header">
         <h1>{t('select.title')}</h1>
         <button className="lang-switch" onClick={handleSwitchLang}>{i18n.language === 'zh' ? 'EN' : '中文'}</button>
-        <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>
+        {/* 嵌入在 Harness 里时配色跟随宿主，本页不再提供独立开关 */}
+        {!EMBEDDED && <button className="theme-switch" onClick={handleSwitchTheme}>{theme === 'light' ? '🌙' : '☀️'}</button>}
       </div>
 
       <div className="path-input-row">

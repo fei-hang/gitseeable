@@ -15,7 +15,7 @@
 - **分支对比** — 比较两个分支的前进/落后提交数，并查看任意提交的完整 diff
 - **本地修改** — 「已暂存 / 未暂存」分区 + 批量暂存、取消暂存、回退；左右分栏 diff，默认展示完整上下文、可折叠未修改区域、分隔线可拖拽，预览始终显示工作区最新内容
 - **冲突解决** — 内置左右分栏冲突编辑器，支持 merge / rebase / cherry-pick 冲突
-- **主题** — 浅色 / 深色两套主题
+- **主题** — 浅色 / 深色两套主题；作为 DeepSeek Harness 插件时自动跟随宿主配色
 - **国际化** — 支持中文（默认）和英文
 - **会话持久化** — 跨会话记住上次打开的仓库
 
@@ -84,6 +84,74 @@ npm run dev
 
 打开 http://localhost:3000 即可使用。
 
+## DeepSeek Harness 插件（桌面版）
+
+GitSeeable 也可以作为 **DeepSeek Harness** 插件运行：不单独起服务，而是挂进
+Harness 的右侧栏，在「**开始**」页里作为一个入口出现。`dsh-plugin/` 就是它。
+
+### 安装
+
+```sh
+npm run build:plugin
+```
+
+然后用**应用自带的 CLI** 安装——`desktop` 是保留 profile，PATH 上的全局 `dsh`
+无权管理它：
+
+```sh
+# Windows（路径按默认安装位置）
+"D:\softwareInstallationDirectory\deepseekharness\resources\runtime\cli\bin\dsh.cmd" `
+  plugin --profile desktop add "D:\path\to\gitseeable\dsh-plugin"
+
+# 上面那条 .cmd 展开后的完整命令
+"D:\softwareInstallationDirectory\deepseekharness\DeepSeek Harness.exe" --expose-internals `
+  "D:\softwareInstallationDirectory\deepseekharness\resources\app.asar\dsh\node_modules\@deepseek-ai\dsh-desktop-host\lib\cli.js" `
+  plugin --profile desktop add "D:\path\to\gitseeable\dsh-plugin"
+```
+
+```sh
+# macOS / Linux
+"/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness" --expose-internals \
+  "/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
+  plugin --profile desktop add ~/path/to/gitseeable/dsh-plugin
+```
+
+装完**完全退出并重新启动** DeepSeek Harness。
+
+### 使用
+
+1. 打开右侧栏（收起了就先展开）。
+2. 在「**开始**」页里点 **GitSeeable**。
+3. 页面在当前分栏打开，并直接用**当前会话的工作区**作为起始目录。
+
+也可以用 `Ctrl/Cmd + Shift + G` 打开（宿主已占用该组合键时会静默跳过）。
+
+### 主题
+
+页面跟随 Harness 的主题：**亮对亮、暗对暗**，选「跟随系统」时也一样。
+插件里**没有**独立的主题开关——页面首帧从 URL 取配色，之后通过 `postMessage`
+实时接收，所以切换 Harness 主题时已经打开的 GitSeeable 面板会立刻换色，
+既不重载页面，也不丢失你正在浏览的仓库。
+
+独立运行（`npm start`）时仍保留自己的浅色 / 深色按钮。
+
+### 如果 `dsh plugin add` 报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
+
+提示是 `@dsh-ops/bash-win32-x64@0.2.1 could not be checked against
+minimumReleaseAge (version not present in registry manifest)`。根因是
+**registry 镜像不同步**，不是包缺失：该版本在 `registry.npmjs.org` 上存在，
+但镜像（如 `registry.npmmirror.com`）还没同步，pnpm 无法确认版本，
+整个安装于是失败。让安装走官方 registry：
+
+```sh
+".../dsh.cmd" plugin --profile desktop add --registry=https://registry.npmjs.org/ "D:\path\to\dsh-plugin"
+```
+
+`--registry` 必须写在 `add` **之后**；`remove` 不接受该参数，需要改用
+`pnpm remove -w <name> --config.registry=https://registry.npmjs.org/`。
+要只对桌面 profile 长期生效，可在该 profile 目录放一行 `.npmrc`
+（见 `dsh-plugin/README.md`）。
+
 ## 命令
 
 | 命令 | 说明 |
@@ -95,6 +163,7 @@ npm run dev
 | `cd client && npm run lint` | 运行 ESLint |
 | `cd server && npm run dev` | 服务端开发模式 (tsx watch) |
 | `cd server && npm run build` | 编译服务端 TypeScript |
+| `npm run build:plugin` | 构建前端并把 DeepSeek Harness 插件装配到 `dsh-plugin/` |
 
 ## AI 快速启动
 
