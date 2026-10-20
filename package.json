@@ -10,6 +10,7 @@
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm run build",
     "build": "npm run build:client && npm run build:server && node scripts/copy-client.js",
+    "build:plugin": "npm run build:client && node scripts/build-plugin.js",
     "start": "node server/dist/index.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "npx tsx server/index.ts",

@@ -10,3 +10,7 @@ server/state.json
 context-menu.png
 drop-dialog*.png
 opencode-local.png
+
+# 插件装配产物（npm run build:plugin 生成，发布时随包分发但不入库）
+dsh-plugin/server/
+dsh-plugin/.tmp-state/

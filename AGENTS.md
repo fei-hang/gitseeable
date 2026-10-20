@@ -16,6 +16,7 @@ Full-stack Git repo visualizer: React 19 + Vite 5 + TS frontend (`client/`, ESM)
 | `npm run server` | API only → `npx tsx server/index.ts` |
 | `npm run client` | Vite only → `cd client && npm run dev` |
 | `npm run build` | client build → server tsc → `scripts/copy-client.js` (`client/dist` → `server/dist/public`; errors if client not built first) |
+| `npm run build:plugin` | client build → `scripts/build-plugin.js`: esbuild `server/app.ts` → `dsh-plugin/server/app.cjs` (single-file CJS, deps inlined) + `client/dist` → `dsh-plugin/server/public` |
 | `npm start` | Production: `node server/dist/index.js` (API + client on `:3001`) |
 | `cd client && npm run lint` | ESLint (flat config) |
 | `cd client && npx tsc --noEmit` | Client typecheck (no npm script exists) |
@@ -38,10 +39,10 @@ Full-stack Git repo visualizer: React 19 + Vite 5 + TS frontend (`client/`, ESM)
 
 ## Architecture
 
-- Entry: `client/src/main.tsx` → `App.tsx` → `GitVisualizer.tsx`. All API routes + git ops live in **one file**: `server/index.ts` (~1800 lines).
+- Entry: `client/src/main.tsx` → `App.tsx` → `GitVisualizer.tsx`. All API routes + git ops live in **one file**: `server/app.ts` (~1800 lines); `server/index.ts` is the 12-line standalone `listen()` entry.
 - `client/src/GitVisualizer.tsx` is **~2400 lines** (tabs, sidebar, graph, diff); its types are declared in-file, not in separate modules. For both giants: grep, don't read end-to-end.
 - Layout: `client/src/{api,components,locales,constants}` · `agentsref/` specs · `DOC/` user docs + screenshots · `scripts/copy-client.js` build step.
-- Dev networking: `client/vite.config.js` proxies `/api` → `localhost:3001`; `API_BASE_URL = ''` (`client/src/constants/index.ts`).
+- Dev networking: `client/vite.config.js` proxies `/api` → `localhost:3001`; the client build uses `base: './'` and derives its API prefix from `window.location.pathname` (`client/src/constants/index.ts`) — `''` when served at the root, `/gitseeable` under the DSH plugin. One build serves both hosts.
 - Endpoint catalog = `client/src/api/index.ts` (one axios fn per route) + contract in `agentsref/api.md`. Everything is POST except GET `/api/drives`, `/api/last-path`, `/api/ui-state`, plus SSE `GET /api/file-events` (EventSource in `GitVisualizer.tsx` — live worktree updates).
 - Persistence: **no client-side storage** (no localStorage/sessionStorage) — UI prefs round-trip `GET/POST /api/ui-state` via a debounced save.
 - Express **5**, not 4 (`req.query`, route syntax differ) — see `agentsref/dev-quirks.md`.
@@ -50,7 +51,12 @@ Full-stack Git repo visualizer: React 19 + Vite 5 + TS frontend (`client/`, ESM)
 
 | Task | File |
 |---|---|
-| All API routes / git operations | `server/index.ts` |
+| All API routes / git operations | `server/app.ts` |
+| Standalone `listen()` entry | `server/index.ts` |
+| DSH plugin: host half (routes/auth/mount) | `dsh-plugin/lib/index.js` |
+| DSH plugin: browser half (right-Sidebar tab type + Start-page entry) | `dsh-plugin/lib/client.js` |
+| DSH plugin: bundle layer + manifest | `dsh-plugin/cordis.patch.yml`, `dsh-plugin/package.json` |
+| Plugin assembly (esbuild bundle + dist copy) | `scripts/build-plugin.js` |
 | API client (authoritative endpoint list) | `client/src/api/index.ts` |
 | Main UI (tabs, graph, diff) | `client/src/GitVisualizer.tsx` + `GitVisualizer.css` |
 | Branch CRUD + context menus | `client/src/components/BranchList.tsx`, `ContextMenu.tsx` |

@@ -9,6 +9,7 @@
 5. [本地修改](#5-本地修改)
 6. [深色模式](#6-深色模式)
 7. [中英文切换](#7-中英文切换)
+8. [在 DeepSeek Harness 里使用（插件）](#8-在-deepseek-harness-里使用插件)
 
 ---
 
@@ -330,3 +331,66 @@
 - 当前为英文界面时，按钮显示 **中**，点击后切换到中文
 
 界面中的所有文字（包括按钮、标签、提示信息）会即时切换为对应的语言。语言偏好会自动保存，下次打开应用时自动恢复。
+
+---
+
+## 8. 在 DeepSeek Harness 里使用（插件）
+
+仓库里的 `dsh-plugin/` 把 GitSeeable 打包成 DeepSeek Harness 插件：不需要单独起服务，
+直接在右侧栏里打开。
+
+### 装配与安装
+
+```sh
+npm run build:plugin                              # 构建前端 + 装配插件包
+dsh plugin --profile desktop add ./dsh-plugin     # 安装进 Harness 的桌面 profile
+```
+
+安装完**完全重启** DeepSeek Harness。
+
+### 打开
+
+重启后右侧栏的「**开始**」页会多出一个 **GitSeeable** 入口胶囊：
+
+1. 点右侧栏会话 header 角落的展开按钮，打开右侧面板（已展开则跳过）
+2. 在「开始」页里点 **GitSeeable**，它会在当前分栏里打开
+
+打开的页面会用**当前会话的工作区**作为起始目录，直接定位到那个仓库；之后照常在
+GitSeeable 里切换目录、扫描仓库、看提交图和本地修改。
+
+搜索框里也能用快捷键 **Ctrl/Cmd + Shift + G** 打开（与宿主已有按键冲突时会被跳过，
+此时用上面的入口胶囊即可）。
+
+### 配置挂载前缀
+
+默认挂在 `/gitseeable/`，接口在同前缀下的 `/gitseeable/api/...`。要改前缀，在 profile 的
+`cordis.patch.yml` 里按 id 覆盖：
+
+```yaml
+- id: gitseeable
+  config:
+    basePath: /my-git
+```
+
+### 与独立版的差异
+
+| | 独立运行（`npm start`） | 作为 Harness 插件 |
+|---|---|---|
+| 页面地址 | `http://localhost:3001/` | `http://<host>/gitseeable/` |
+| 接口前缀 | `/api/...` | `/gitseeable/api/...` |
+| 界面偏好落盘 | `server/dist/state.json` | `$DSH_HOME/storages/gitseeable/state.json` |
+| 启动方式 | `npm start` / 全局命令 | Harness 自动挂载 |
+
+接口前缀由前端按当前文档路径自动推断，所以**同一份前端构建产物两种宿主都能用**。
+
+### 安全说明
+
+GitSeeable 会读取任意目录并执行 git 命令，所以插件的路由经过 Harness 自己的浏览器认证：
+只有带着 Harness 签发 cookie 的请求才会被处理，从别处探测会拿到 401。
+
+### 卸载
+
+```sh
+dsh plugin --profile desktop remove dsh-gitseeable
+```
+

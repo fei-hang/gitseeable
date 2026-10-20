@@ -1,0 +1,14 @@
+# dsh-gitseeable — GitSeeable 的 DSH 插件层。
+#
+# 一行同时提供两面（DSH 的固定形态）：
+#   - 主机侧（lib/index.js）：把 GitSeeable 的 Express 应用挂到 /gitseeable/，
+#     并注册 /_gitseeable/mount.json 让浏览器端发现挂载前缀。
+#   - 浏览器侧（lib/client.js，由 package.json 的 dsh.client 声明）：
+#     右侧栏的 tab 类型，带一个「开始」页入口，点开即在本栏查看仓库。
+#
+# 行 id 固定，便于在 profile 的 cordis.patch.yml 里按 id 覆盖 basePath 等配置。
+- insert:
+    - id: gitseeable
+      name: dsh-gitseeable
+      config:
+        basePath: /gitseeable
