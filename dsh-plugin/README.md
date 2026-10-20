@@ -50,6 +50,17 @@ npm run build:plugin
 
 安装后完全重启 DeepSeek Harness，右侧栏「开始」页就会出现 **GitSeeable** 入口。
 
+`<包路径>` 可以是**插件目录**（开发时，`link:` 到工作区），也可以是**打包好的
+tarball**（分发时，`file:` 到固定版本，装进 profile 的 `node_modules` 里复制一份）：
+
+```sh
+cd dsh-plugin && npm pack --pack-destination ..   # → dsh-gitseeable-1.0.0.tgz
+".../dsh.cmd" plugin --profile desktop add --registry=https://registry.npmjs.org/ "D:/path/to/dsh-gitseeable-1.0.0.tgz"
+```
+
+> 两者切换时要先 `remove` 再 `add`：pnpm 会记住原来的 specifier，直接重装有可能
+> 报 `Already up to date` 而把旧的 `link:` 留着。
+
 > ⚠ `desktop` 是桌面应用的保留 profile：**PATH 上的全局 `dsh` 管不了它**，会报
 > `profile "desktop" is managed exclusively by the Electron application`。
 > 必须是应用自带的 CLI（`dsh.cmd` 或上面那条展开命令），两者内部都是
