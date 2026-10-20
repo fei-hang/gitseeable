@@ -25,6 +25,45 @@ dsh plugin --profile desktop add ./dsh-gitseeable-1.0.0.tgz
 
 安装后完全重启 DeepSeek Harness，右侧栏「开始」页就会出现 **GitSeeable** 入口。
 
+> `desktop` 是桌面应用的保留 profile：**PATH 上的全局 `dsh` 管不了它**
+> （会报 `profile "desktop" is managed exclusively by the Electron application`），
+> 必须用应用自带的 CLI：
+
+```sh
+"<安装目录>/DeepSeek Harness.exe" --expose-internals \
+  "<安装目录>/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
+  plugin --profile desktop add <包路径>
+```
+
+### 如果 pnpm 安装被供应链策略挡住
+
+桌面 profile 在 `$DSH_HOME/profiles/desktop/pnpm-workspace.yaml` 里启用了
+`minimumReleaseAge` 校验。若锁文件里有过期/下架的依赖（例如
+`@dsh-ops/bash-win32-x64@0.2.1` 在 registry 上并不存在），任何 `pnpm add` 都会整体失败：
+
+```
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] ... could not be checked against minimumReleaseAge
+```
+
+这是 profile 自身的问题，与插件无关。**不经过包管理器**安装本地插件即可绕开
+（DSH 是用标准 Node 解析从 `node_modules` 找 bundle 的，符号链接就够）：
+
+```sh
+cd "$DSH_HOME/profiles/desktop"
+mklink /J node_modules\dsh-gitseeable <插件绝对路径>   # Windows；Linux/macOS 用 ln -s
+```
+
+然后手工在 `package.json` 的两处加上插件：
+
+```jsonc
+{
+  "dependencies": { "dsh-gitseeable": "link:D:\\path\\to\\dsh-plugin" /* … */ },
+  "dsh": { "profile": { "bundles": [ /* … */, "dsh-gitseeable" ] } }
+}
+```
+
+重启后插件作为 profile 的最后一层生效；卸载就是删掉这两处加上那个符号链接。
+
 ## 配置
 
 插件在 profile 的 `cordis.patch.yml` 里以固定 id `gitseeable` 出现，可按 id 覆盖：

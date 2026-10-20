@@ -343,10 +343,23 @@
 
 ```sh
 npm run build:plugin                              # 构建前端 + 装配插件包
-dsh plugin --profile desktop add ./dsh-plugin     # 安装进 Harness 的桌面 profile
+```
+
+然后**用应用自带的 CLI** 安装（`desktop` 是保留 profile，PATH 上的全局 `dsh` 无权管理它）：
+
+```sh
+"<安装目录>/DeepSeek Harness.exe" --expose-internals \
+  "<安装目录>/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
+  plugin --profile desktop add ./dsh-plugin
 ```
 
 安装完**完全重启** DeepSeek Harness。
+
+> 若报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`（桌面 profile 锁文件里有过期依赖，
+> 与本插件无关），改用不改包管理器的方式安装：在 profile 的 `node_modules` 里建一个
+> 指向 `dsh-plugin` 的符号链接，再把 `dsh-gitseeable` 分别加进该 profile
+> `package.json` 的 `dependencies` 和 `dsh.profile.bundles`。详见
+> [`dsh-plugin/README.md`](../dsh-plugin/README.md)。
 
 ### 打开
 
