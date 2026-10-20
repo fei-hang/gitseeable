@@ -4,7 +4,7 @@
  * Owns two routes and nothing else:
  *   - `<basePath>` (default `/gitseeable`) — the GitSeeable SPA and its
  *     `<basePath>/api/*` endpoints, served by the unchanged GitSeeable Express
- *     application bundled into `server/app.js`.
+ *     application bundled into `server/app.cjs`.
  *   - `/_gitseeable/mount.json` — the fixed, prefix-independent discovery
  *     route the browser half reads to learn where the SPA was mounted.
  *
@@ -125,8 +125,10 @@ export function apply(ctx, config = {}) {
 
   /** Reject an unauthenticated request before any repository data is read. */
   const authorize = (req, res) => {
-    // Read lazily: composition may install Connection after this fiber mounts.
-    const connection = ctx.reflect?.get?.('connection') ?? ctx.get?.('connection')
+    // Non-strict and read per request: composition may install Connection after
+    // this fiber mounts, and a Host without it (a bare CLI composition) has no
+    // browser boundary to enforce.
+    const connection = typeof ctx.get === 'function' ? ctx.get('connection', false) : undefined
     if (connection === undefined || connection === null || typeof connection.authorizeIndex !== 'function') return true
     return connection.authorizeIndex(req, res, ctx.webServer?.protocol === 'https:')
   }
