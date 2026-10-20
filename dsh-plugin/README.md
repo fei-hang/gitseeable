@@ -15,25 +15,28 @@ GitSeeable 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harnes
 
 ## 安装
 
-```sh
-# 从仓库里的 dsh-plugin 目录（先用 npm run build:plugin 装配产物）
-dsh plugin --profile desktop add ./dsh-plugin
+先装配产物，再用**应用自带的 CLI** 安装：
 
-# 或者安装打包好的 tarball / npm 包
-dsh plugin --profile desktop add ./dsh-gitseeable-1.0.0.tgz
+```sh
+npm run build:plugin
 ```
 
-安装后完全重启 DeepSeek Harness，右侧栏「开始」页就会出现 **GitSeeable** 入口。
-
-> `desktop` 是桌面应用的保留 profile：**PATH 上的全局 `dsh` 管不了它**
-> （会报 `profile "desktop" is managed exclusively by the Electron application`），
-> 必须用应用自带的 CLI：
-
 ```sh
+# 推荐：应用自带的启动器（已设好 ELECTRON_RUN_AS_NODE，等价于下面那条长命令）
+"<安装目录>/resources/runtime/cli/bin/dsh.cmd" plugin --profile desktop add <包路径>
+
+# 等价的展开写法
 "<安装目录>/DeepSeek Harness.exe" --expose-internals \
   "<安装目录>/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
   plugin --profile desktop add <包路径>
 ```
+
+安装后完全重启 DeepSeek Harness，右侧栏「开始」页就会出现 **GitSeeable** 入口。
+
+> ⚠ `desktop` 是桌面应用的保留 profile：**PATH 上的全局 `dsh` 管不了它**，会报
+> `profile "desktop" is managed exclusively by the Electron application`。
+> 必须是应用自带的 CLI（`dsh.cmd` 或上面那条展开命令），两者内部都是
+> `dsh-desktop-host/lib/cli.js` + `manageDesktopProfile: true`。
 
 ### 如果 pnpm 安装被供应链策略挡住
 

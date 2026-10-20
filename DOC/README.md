@@ -348,6 +348,10 @@ npm run build:plugin                              # 构建前端 + 装配插件�
 然后**用应用自带的 CLI** 安装（`desktop` 是保留 profile，PATH 上的全局 `dsh` 无权管理它）：
 
 ```sh
+# 推荐：应用自带的启动器，已设好 ELECTRON_RUN_AS_NODE
+"<安装目录>/resources/runtime/cli/bin/dsh.cmd" plugin --profile desktop add ./dsh-plugin
+
+# 等价的展开写法
 "<安装目录>/DeepSeek Harness.exe" --expose-internals \
   "<安装目录>/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" \
   plugin --profile desktop add ./dsh-plugin
